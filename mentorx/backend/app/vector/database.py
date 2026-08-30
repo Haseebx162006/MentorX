@@ -17,13 +17,6 @@ def store_db(chunks, embedding_model=None):
     """
     Takes a list of chunks and an embedding model, generates embeddings for each chunk,
     and stores them in a Qdrant database using configured settings.
-
-    Args:
-        chunks (list): Document chunks to store.
-        embedding_model (optional): Pre-configured embedding model instance.
-
-    Returns:
-        QdrantVectorStore instance or None if an error occurs.
     """
     try:
         model = embedding_model or get_embedding_model()

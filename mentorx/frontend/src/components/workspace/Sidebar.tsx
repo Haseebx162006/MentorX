@@ -10,6 +10,7 @@ import {
   History,
   PanelLeftClose,
   LogOut,
+  Shield,
 } from "lucide-react";
 import { useChatStore } from "@/store/useChatStore";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -23,7 +24,7 @@ export default function Sidebar() {
     createNewChat,
   } = useChatStore();
 
-  const { user } = useAuthStore();
+  const { user, toggleAdminRole } = useAuthStore();
   const {
     sidebarCollapsed,
     toggleSidebar,
@@ -66,6 +67,14 @@ export default function Sidebar() {
             className="w-9 h-9 rounded-xl text-[#71717a] hover:bg-[#f4f4f5] flex items-center justify-center transition-colors cursor-pointer"
           >
             <Search className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setCurrentView("admin")}
+            title="Admin Portal (Users & Qdrant Ingestion)"
+            className="w-9 h-9 rounded-xl bg-[#18181b] text-white flex items-center justify-center hover:bg-[#27272a] transition-colors cursor-pointer"
+          >
+            <Shield className="w-4 h-4" />
           </button>
         </div>
 
@@ -141,6 +150,22 @@ export default function Sidebar() {
             <Globe className="w-4 h-4 text-[#71717a]" />
             <span>Explore</span>
           </button>
+
+          {/* Admin Portal Direct Link */}
+          <button
+            type="button"
+            onClick={() => setCurrentView("admin")}
+            className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl bg-[#18181b] text-white transition-colors cursor-pointer text-left font-semibold shadow-2xs"
+          >
+            <div className="flex items-center gap-3">
+              <Shield className="w-4 h-4" />
+              <span>Admin Portal</span>
+            </div>
+            <span className="text-[9px] font-mono bg-white text-[#18181b] px-1.5 py-0.5 rounded font-bold">
+              QDRANT
+            </span>
+          </button>
+
           <button
             type="button"
             className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl hover:bg-[#f4f4f5] hover:text-[#18181b] transition-colors cursor-pointer text-left"
@@ -253,8 +278,13 @@ export default function Sidebar() {
               className="w-8 h-8 rounded-full object-cover border border-[#e4e4e7] flex-shrink-0"
             />
             <div className="overflow-hidden">
-              <div className="text-xs font-bold text-[#18181b] truncate">
-                {user?.name || "Emerson Sterling"}
+              <div className="text-xs font-bold text-[#18181b] truncate flex items-center gap-1">
+                <span>{user?.name || "Emerson Sterling"}</span>
+                {user?.role === "admin" && (
+                  <span className="text-[8px] font-mono bg-[#18181b] text-white px-1 rounded">
+                    ADMIN
+                  </span>
+                )}
               </div>
               <div className="text-[10px] text-[#71717a] truncate">
                 {user?.email || "sterlingr@gmail.com"}

@@ -20,6 +20,14 @@ class Settings(BaseSettings):
     APP_DESCRIPTION: str = "AI Academic Guidance Assistant for FSc Students"
     DEBUG: bool = False
 
+    # PostgreSQL / Neon Database Settings
+    DATABASE_URL: str = Field(
+        default="",
+        description="Neon / PostgreSQL connection string (e.g., postgresql://user:password@ep-xyz.neon.tech/dbname?sslmode=require)",
+    )
+    POSTGRES_URL: Optional[str] = Field(default=None, description="Alternative PostgreSQL connection URL")
+    NEON_DATABASE_URL: Optional[str] = Field(default=None, description="Alternative Neon connection URL")
+
     # Google / Gemini Settings
     GOOGLE_API_KEY: str = Field(default="", description="Google Generative AI API key")
     EMBEDDING_MODEL_NAME: str = Field(
@@ -45,6 +53,11 @@ class Settings(BaseSettings):
     # Text Chunking Settings
     CHUNK_SIZE: int = Field(default=1000, description="Chunk size for RecursiveCharacterTextSplitter")
     CHUNK_OVERLAP: int = Field(default=300, description="Chunk overlap for RecursiveCharacterTextSplitter")
+
+    def get_database_url(self) -> str:
+        """Returns active PostgreSQL connection URL from settings."""
+        url = self.DATABASE_URL or self.POSTGRES_URL or self.NEON_DATABASE_URL or ""
+        return url.strip()
 
     model_config = SettingsConfigDict(
         env_file=(str(ENV_FILE), ".env"),

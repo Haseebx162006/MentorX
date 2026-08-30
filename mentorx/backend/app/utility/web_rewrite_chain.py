@@ -1,11 +1,19 @@
 from pydantic import BaseModel
-from LLM.llm import create_llm
 from langchain_core.prompts import ChatPromptTemplate
-from config.settings import settings
-class WebQuery( BaseModel):
+from app.LLM.llm import create_llm
+from app.config.settings import settings
+
+
+class WebQuery(BaseModel):
     query: str
 
-llm = create_llm(model=settings.GROQ_MODEL, api_key=settings.GROQ_API_KEY, temperature=0.7, max_tokens=2000)
+
+llm = create_llm(
+    model=settings.GROQ_MODEL,
+    api_key=settings.GROQ_API_KEY,
+    temperature=0.7,
+    max_tokens=2000,
+)
 
 rewrite_prompt = ChatPromptTemplate.from_messages(
     [
@@ -23,5 +31,3 @@ rewrite_prompt = ChatPromptTemplate.from_messages(
 )
 
 rewrite_chain = rewrite_prompt | llm.with_structured_output(WebQuery)
-
-

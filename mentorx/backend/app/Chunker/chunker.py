@@ -1,6 +1,10 @@
-from langchain_text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 from app.config.settings import settings
+
+try:
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+except ImportError:
+    from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 
 def convert_to_chunks(

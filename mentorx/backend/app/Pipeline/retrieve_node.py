@@ -1,18 +1,16 @@
-
-from LLM.embedding_llm import create_embedding_llm
-from State import State
+from app.LLM.embedding_llm import create_embedding_llm
+from app.Pipeline.State import State
 from langchain_qdrant import QdrantVectorStore
-from mentorx.backend.app.config import settings
 from qdrant_client import QdrantClient
-from config.settings import settings
-    
+from app.config.settings import settings
 
-def retrieve_node(state:State):
-    q= state.get("question")
 
-    embedding_model=create_embedding_llm(
-        api_key=state.get("GOOGLE_API_KEY"),
-        model=state.get("EMBEDDING_MODEL_NAME"),
+def retrieve_node(state: State):
+    q = state.get("question") if isinstance(state, dict) else state.question
+
+    embedding_model = create_embedding_llm(
+        api_key=settings.GOOGLE_API_KEY,
+        model=settings.EMBEDDING_MODEL_NAME,
     )
 
     client = QdrantClient(
@@ -26,12 +24,7 @@ def retrieve_node(state:State):
         embedding=embedding_model,
     )
 
-
     retriever = vector_store.as_retriever(search_kwargs={"k": 4})
     retrieved_docs = retriever.invoke(q)
     
     return {"docs": retrieved_docs}
-
-
-
-    

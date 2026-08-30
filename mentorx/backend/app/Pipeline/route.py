@@ -1,5 +1,7 @@
 from typing import Dict, Any
-from State import State
+from app.Pipeline.State import State
+
+
 def route_decision(state: State) -> str:
     verdict = state.get("verdict") if isinstance(state, dict) else state.verdict
     if verdict == "good":

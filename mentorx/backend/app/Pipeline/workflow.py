@@ -2,14 +2,14 @@ from typing import Dict, Any
 from langgraph.graph import StateGraph, START, END
 
 # Use consistent imports based on your app structure
-from app.Pipeline.State import State
-from app.Pipeline.eval_node import eval_node
-from app.Pipeline.refine import refine
-from app.Pipeline.web_node import rewrite_query_node, web_search_node
-from app.Pipeline.combine_docs_node import combine_docs_node
-from app.Pipeline.generate_node import generate_node
-from app.Pipeline.retrieve_node import retrieve_node
-from app.Pipeline.route import route_decision
+from Pipeline.State import State
+from Pipeline.eval_node import eval_node
+from Pipeline.refine import refine
+from Pipeline.web_node import rewrite_query_node, web_search_node
+from Pipeline.combine_docs_node import combine_docs_node
+from Pipeline.generate_node import generate_node
+from Pipeline.retrieve_node import retrieve_node
+from Pipeline.route import route_decision
 
 
 def build_workflow():

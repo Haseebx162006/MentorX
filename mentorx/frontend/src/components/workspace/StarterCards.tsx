@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Clock, Lightbulb, Scale } from "lucide-react";
+import { Compass, Calculator, TrendingUp } from "lucide-react";
 import { useChatStore } from "@/store/useChatStore";
 
 export default function StarterCards() {
@@ -9,22 +9,22 @@ export default function StarterCards() {
 
   const cards = [
     {
-      icon: <Clock className="w-3.5 h-3.5 text-[#18181b]" />,
-      title: "Synthesize Data",
-      description: "Turn my meeting notes into 5 key bullet points for the team.",
-      query: "Turn my meeting notes into 5 key bullet points for the team.",
+      icon: <Compass className="w-3.5 h-3.5 text-[#18181b]" />,
+      title: "University Matcher",
+      description: "I scored 85% in FSc Pre-Medical. What are my best options for BSCS, Biotech, and Allied Health Sciences?",
+      query: "I scored 85% in FSc Pre-Medical and 90% in Matric. Recommend the best compatible universities in Pakistan for Computing (BSCS/AI), Biotechnology, and Allied Health with their expected eligibility cutoffs.",
     },
     {
-      icon: <Lightbulb className="w-3.5 h-3.5 text-[#18181b]" />,
-      title: "Creative Brainstorm",
-      description: "Generate 3 taglines for a new sustainable fashion brand.",
-      query: "Generate 3 taglines for a new sustainable fashion brand.",
+      icon: <Calculator className="w-3.5 h-3.5 text-[#18181b]" />,
+      title: "Aggregate Calculator",
+      description: "Calculate my exact NUST NET aggregate with 88% Matric, 82% FSc Part 1, and target NET 145.",
+      query: "Calculate my exact NUST NET aggregate and FAST aggregate if I have 88% in Matric, 82% in FSc Part 1, and score 145 in NET.",
     },
     {
-      icon: <Scale className="w-3.5 h-3.5 text-[#18181b]" />,
-      title: "Check Facts",
-      description: "Compare key differences between GDPR and CCPA.",
-      query: "Compare key differences between GDPR and CCPA.",
+      icon: <TrendingUp className="w-3.5 h-3.5 text-[#18181b]" />,
+      title: "Closing Merit Cutoffs",
+      description: "What were the 2024-2025 closing merit percentages for FAST Islamabad BSCS and SE?",
+      query: "What were the previous year closing merit percentages and merit lists for FAST Islamabad, NUST SEECS, and GIKI for Computer Science and Software Engineering?",
     },
   ];
 

@@ -1,13 +1,20 @@
 from langchain_core.prompts import ChatPromptTemplate
-from LLM.llm import create_llm
-from config.settings import settings
 from pydantic import BaseModel
+from app.LLM.llm import create_llm
+from app.config.settings import settings
 
 
-llm= create_llm(model=settings.GROQ_MODEL, api_key=settings.GROQ_API_KEY, temperature=0.7, max_tokens=2000)
-class DocEvalScore:
+class DocEvalScore(BaseModel):
     score: float
     reason: str
+
+
+llm = create_llm(
+    model=settings.GROQ_MODEL,
+    api_key=settings.GROQ_API_KEY,
+    temperature=0.7,
+    max_tokens=2000,
+)
 
 doc_eval_prompt = ChatPromptTemplate.from_messages(
     [

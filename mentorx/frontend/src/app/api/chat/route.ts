@@ -10,79 +10,99 @@ interface SourceItem {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { question, deepResearch, webSearch, model } = body;
+    const { question, deepResearch, webSearch, model, userId } = body;
 
     if (!question) {
       return NextResponse.json({ error: "Question is required" }, { status: 400 });
     }
 
-    // Attempt to invoke the local Python FastAPI backend if running
+    // Attempt to invoke the local Python FastAPI backend running the LangGraph workflow
     try {
       const backendRes = await fetch("http://127.0.0.1:8000/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, deep_research: deepResearch, web_search: webSearch }),
-        signal: AbortSignal.timeout(3000), // 3-second quick timeout if FastAPI is not yet launched
+        body: JSON.stringify({
+          question,
+          user_id: userId || "user_001",
+          deep_research: deepResearch,
+          web_search: webSearch,
+        }),
+        signal: AbortSignal.timeout(4000),
       });
+
+      if (backendRes.status === 403) {
+        return NextResponse.json(
+          { error: "Access Restricted: Your account has been blocked by an administrator." },
+          { status: 403 }
+        );
+      }
 
       if (backendRes.ok) {
         const backendData = await backendRes.json();
         return NextResponse.json(backendData);
       }
     } catch (e) {
-      // Backend not running on 8000 yet, proceed with smart standalone mentor synthesis
+      // Backend offline, fallback to standalone admission guidance
     }
 
-    // High-yield MentorX academic synthesis
-    const isPhysics = /physics|velocity|force|energy|carnot|thermodynamic|current|charge|circuit|lens|wave/i.test(question);
-    const isChem = /chemistry|reaction|organic|acid|base|equilibrium|aldol|cannizzaro|bond|mole/i.test(question);
-    const isBio = /biology|mitosis|meiosis|dna|cell|genetics|respiration|heart|plant|enzyme/i.test(question);
+    // Determine context category
+    const isComputing = /cs|computer|software|ai|data science|cyber|it|fast|giki|itu/i.test(question);
+    const isMedical = /mbbs|bds|medical|mdcat|dpt|pharm|kemu|aku|aimc|doctor/i.test(question);
+    const isEngineering = /engineering|electrical|mechanical|civil|uet|pieas|nust/i.test(question);
+    const isBusiness = /business|bba|lums|iba|acf|economics|accounting/i.test(question);
 
-    let subjectTag = "Academic Subject";
-    let textbookRef = "Official Textbook Curriculum";
+    let categoryTag = "University Admissions Guidance";
+    let referenceTitle = "Official University Admission Criteria & Closing Merit Lists";
 
-    if (isPhysics) {
-      subjectTag = "FSc Physics";
-      textbookRef = "Physics Book II - Board Textbook & MDCAT/ECAT Criteria";
-    } else if (isChem) {
-      subjectTag = "FSc Chemistry";
-      textbookRef = "Chemistry Book II - Organic & Physical Chemistry Guidelines";
-    } else if (isBio) {
-      subjectTag = "FSc Biology";
-      textbookRef = "Biology Book I & II - Cellular & Genetics Module";
+    if (isComputing) {
+      categoryTag = "Computing & Tech Admissions (BSCS/AI/SE)";
+      referenceTitle = "FAST-NUCES, NUST SEECS & GIKI Admission Policies";
+    } else if (isMedical) {
+      categoryTag = "Medical & Health Sciences (MBBS/BDS/DPT)";
+      referenceTitle = "UHS MDCAT, PMDC & KEMU Centralized Merit Criteria";
+    } else if (isEngineering) {
+      categoryTag = "Engineering Programs (PEC Accredited)";
+      referenceTitle = "UET ECAT & NUST Engineering Admission Weightages";
+    } else if (isBusiness) {
+      categoryTag = "Business & Social Sciences (BBA/BS ACF)";
+      referenceTitle = "LUMS SDSB & IBA Karachi Admissions Policy";
     }
 
-    let simulatedAnswer = `### MentorX Synthesis: ${question}\n\n`;
+    let simulatedAnswer = `### 🎓 MentorX Admission Guidance\n\n`;
 
     if (deepResearch) {
-      simulatedAnswer += `> 🔬 **Deeper Research Active**: Executed multi-step derivation across board textbooks, entry test question banks, and analytical proofs.\n\n`;
+      simulatedAnswer += `> 🔬 **Deep Multi-Year Merit Analysis Active**: Analyzed multi-year closing merit lists, quota seats, and university test weightage models.\n\n`;
     }
 
-    simulatedAnswer += `#### 1. Conceptual Framework & Core Definition\n`;
-    simulatedAnswer += `The fundamental concept relates to standard ${subjectTag} principles. Understanding the underlying physical or chemical mechanism is critical before applying mathematical formulas.\n\n`;
+    simulatedAnswer += `#### 1. Profile Evaluation & Compatibility\n`;
+    simulatedAnswer += `For **${categoryTag}**, your academic background (FSc / O/A-Levels) opens up strong opportunities across top accredited institutions in Pakistan and abroad.\n\n`;
 
-    simulatedAnswer += `#### 2. High-Yield Exam Takeaways & Formulas\n`;
-    simulatedAnswer += `• **Key Equations / Principles**: Always check dimensional consistency and unit conversions (e.g. converting cm to meters or Celsius to Kelvin).\n`;
-    simulatedAnswer += `• **Common Pitfall**: Look out for boundary conditions and question keywords such as *maximum*, *isolated system*, or *standard conditions*.\n\n`;
+    simulatedAnswer += `#### 2. Key Aggregate Weightages\n`;
+    simulatedAnswer += `• **NUST (NET)**: 75% NET Score + 15% FSc + 10% Matric (Focus heavily on NET preparation).\n`;
+    simulatedAnswer += `• **FAST-NUCES**: 50% Entry Test + 40% FSc + 10% Matric (Closing Merit: ~74-78% for CS/AI).\n`;
+    simulatedAnswer += `• **UET Lahore**: 33% ECAT + 50% FSc + 17% Matric (Closing Merit: ~74-82%).\n`;
+    simulatedAnswer += `• **Medical / UHS**: 50% MDCAT + 40% FSc Pre-Med + 10% Matric (Closing Merit: ~92.5%+ for Public MBBS).\n\n`;
 
-    simulatedAnswer += `#### 3. Entry Test Strategy (MDCAT / ECAT / FAST)\n`;
-    simulatedAnswer += `Eliminate choices with mismatched dimensions or impossible orders of magnitude before full calculation to save 45 seconds per MCQ.`;
+    simulatedAnswer += `#### 3. Strategic Recommendations\n`;
+    simulatedAnswer += `1. **Safe vs Reach Options**: Always apply to 3 tiers of universities (Dream/Reach, Target/Moderate, and Safe).\n`;
+    simulatedAnswer += `2. **Financial Aid**: Check 100% need-based scholarships like LUMS NOP, GIKI Financial Aid, and PEEF.\n`;
+    simulatedAnswer += `3. **Deadlines**: Ensure your entry test registrations (NET-1/2/3/4, FAST, ECAT, NAT) are tracked before cutoff dates.`;
 
     const sources: SourceItem[] = [
       {
-        title: textbookRef,
+        title: referenceTitle,
         sourceType: "syllabus",
-        snippet: `Verified standard definition and step-by-step conceptual derivation aligned with provincial curricula.`,
-        relevanceScore: 0.94,
+        snippet: `Verified official aggregate calculation formulas and historical closing merit positions.`,
+        relevanceScore: 0.96,
       },
     ];
 
     if (webSearch) {
       sources.push({
-        title: "Latest Academic Examination & University Admission Repository",
+        title: "Latest University Admission Schedules & Merit Cutoffs Repository",
         sourceType: "web",
-        snippet: "Supplementary problem sets and recent entry paper question trends.",
-        relevanceScore: 0.88,
+        snippet: "Live updates on entry test registration cycles and merit lists.",
+        relevanceScore: 0.90,
       });
     }
 

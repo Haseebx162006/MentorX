@@ -19,42 +19,56 @@ export default function HeroSection() {
             transition={{ duration: 0.7 }}
             className="lg:col-span-6 text-left max-w-xl"
           >
-            {/* Main Headline from Reference Image */}
-            <h1 className="text-4xl sm:text-5xl lg:text-[54px] font-medium tracking-tight text-[#18181b] leading-[1.12]">
+            {/* Target Audience Pill */}
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#f4f4f5] border border-[#e4e4e7] text-[#52525b] text-xs font-semibold mb-5 font-mono">
+              <span>🎓 FSc, ICS & O/A-Level Admission Mentor</span>
+            </div>
+
+            {/* Main Headline */}
+            <h1 className="text-4xl sm:text-5xl lg:text-[52px] font-medium tracking-tight text-[#18181b] leading-[1.12]">
               <span className="font-serif block text-[#18181b]">
-                Safeguard your academic journey
+                Safeguard your university admission
               </span>
               <span className="block mt-1">
                 with intelligent{" "}
                 <span className="text-[#a1a1aa] italic font-serif font-normal">and</span>
               </span>
               <span className="text-[#a1a1aa] font-serif font-normal block mt-1">
-                automated mentorship
+                personalized mentorship
               </span>
             </h1>
 
-            {/* Subheading from Reference Image */}
-            <p className="mt-6 text-xs sm:text-sm text-[#71717a] leading-relaxed max-w-md font-normal">
-              Automate textbook breakdown, syllabus retrieval, and complex problem derivations without getting lost in fragmented video lectures.
+            {/* Subheading */}
+            <p className="mt-5 text-xs sm:text-sm text-[#71717a] leading-relaxed max-w-md font-normal">
+              Find compatible universities matching your FSc marks & A-Level grades. Get verified aggregate calculations, historical closing merit cutoffs, fee structures, and customized career roadmaps.
             </p>
 
-            {/* Action Buttons from Reference Image */}
-            <div className="mt-9 flex items-center gap-3.5">
-              <button
-                type="button"
-                onClick={() => openAuthModal("signin")}
-                className="px-7 py-3 rounded-full bg-[#18181b] text-white text-xs font-semibold hover:bg-[#27272a] active:scale-95 transition-all shadow-xs cursor-pointer"
-              >
-                Request demo
-              </button>
-
+            {/* Action Buttons */}
+            <div className="mt-8 flex items-center gap-3.5">
               <button
                 type="button"
                 onClick={() => setCurrentView("workspace")}
+                className="px-7 py-3 rounded-full bg-[#18181b] text-white text-xs font-semibold hover:bg-[#27272a] active:scale-95 transition-all shadow-xs cursor-pointer"
+              >
+                Find Compatible Universities
+              </button>
+
+              <button
+                type="button"
+                onClick={() => openAuthModal("signin")}
                 className="px-7 py-3 rounded-full bg-white border border-[#e4e4e7] text-[#27272a] text-xs font-semibold hover:bg-[#fafafa] hover:border-[#d4d4d8] active:scale-95 transition-all shadow-2xs cursor-pointer"
               >
-                Learn More
+                Sign in with Google
               </button>
+            </div>
+
+            {/* Key Trust Signals */}
+            <div className="mt-6 flex flex-wrap items-center gap-4 text-xs text-[#71717a]">
+              <span>✓ Verified Merit Cutoffs</span>
+              <span>•</span>
+              <span>✓ 50+ Top Pakistani & Global Universities</span>
+              <span>•</span>
+              <span>✓ 100% Free Guidance</span>
             </div>
           </motion.div>
 
