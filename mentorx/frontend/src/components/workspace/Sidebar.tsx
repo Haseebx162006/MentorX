@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import {
   Plus,
   Search,
@@ -11,6 +11,8 @@ import {
   PanelLeftClose,
   LogOut,
   Shield,
+  Trash2,
+  MessageSquare,
 } from "lucide-react";
 import { useChatStore } from "@/store/useChatStore";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -22,9 +24,11 @@ export default function Sidebar() {
     activeSessionId,
     selectSession,
     createNewChat,
+    deleteSession,
+    loadUserSessions,
   } = useChatStore();
 
-  const { user, toggleAdminRole } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const {
     sidebarCollapsed,
     toggleSidebar,
@@ -33,9 +37,51 @@ export default function Sidebar() {
     setCurrentView,
   } = useUIStore();
 
+  const historySectionRef = useRef<HTMLDivElement>(null);
+
+  // Fetch chat sessions from backend on mount and user change
+  useEffect(() => {
+    loadUserSessions(user?.id);
+  }, [user?.id, loadUserSessions]);
+
   const todaySessions = sessions.filter((s) => s.category === "Today");
   const yesterdaySessions = sessions.filter((s) => s.category === "Yesterday");
   const weekSessions = sessions.filter((s) => s.category === "7 days");
+  const olderSessions = sessions.filter((s) => s.category === "Older");
+
+  const handleDelete = (e: React.MouseEvent, sessionId: string) => {
+    e.stopPropagation();
+    deleteSession(sessionId);
+  };
+
+  const handleHistoryClick = () => {
+    setSearchModalOpen(true);
+  };
+
+  const renderSessionItem = (session: (typeof sessions)[0]) => {
+    const isActive = activeSessionId === session.id;
+    return (
+      <div
+        key={session.id}
+        onClick={() => selectSession(session.id)}
+        className={`group relative flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs transition-colors cursor-pointer ${
+          isActive
+            ? "bg-[#f4f4f5] text-[#18181b] font-semibold"
+            : "text-[#71717a] hover:bg-[#f4f4f5] hover:text-[#18181b]"
+        }`}
+      >
+        <span className="truncate pr-5 flex-1">{session.title}</span>
+        <button
+          type="button"
+          onClick={(e) => handleDelete(e, session.id)}
+          title="Delete Conversation"
+          className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-600 hover:bg-red-50 rounded-md transition-opacity cursor-pointer flex-shrink-0"
+        >
+          <Trash2 className="w-3 h-3" />
+        </button>
+      </div>
+    );
+  };
 
   if (sidebarCollapsed) {
     return (
@@ -63,18 +109,10 @@ export default function Sidebar() {
           <button
             type="button"
             onClick={() => setSearchModalOpen(true)}
-            title="Search Chats (⌘K)"
+            title="Search Chats & History (⌘K)"
             className="w-9 h-9 rounded-xl text-[#71717a] hover:bg-[#f4f4f5] flex items-center justify-center transition-colors cursor-pointer"
           >
-            <Search className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setCurrentView("admin")}
-            title="Admin Portal (Users & Qdrant Ingestion)"
-            className="w-9 h-9 rounded-xl bg-[#18181b] text-white flex items-center justify-center hover:bg-[#27272a] transition-colors cursor-pointer"
-          >
-            <Shield className="w-4 h-4" />
+            <History className="w-4 h-4" />
           </button>
         </div>
 
@@ -102,7 +140,7 @@ export default function Sidebar() {
               <div className="w-2 h-5 bg-[#71717a] rounded-2xs transform -skew-x-12" />
               <div className="w-2 h-5 bg-[#d4d4d8] rounded-2xs transform -skew-x-12" />
             </div>
-            <span className="font-extrabold text-base text-[#18181b] tracking-tight">Cortex</span>
+            <span className="font-extrabold text-base text-[#18181b] tracking-tight">MentorX</span>
           </div>
 
           <button
@@ -115,7 +153,7 @@ export default function Sidebar() {
           </button>
         </div>
 
-        {/* + New Chat Button (Black Pill) */}
+        {/* + New Chat Button */}
         <button
           type="button"
           onClick={createNewChat}
@@ -129,7 +167,7 @@ export default function Sidebar() {
         <button
           type="button"
           onClick={() => setSearchModalOpen(true)}
-          className="w-full py-2 px-3 rounded-xl bg-white border border-[#e4e4e7] text-xs text-[#71717a] flex items-center justify-between hover:border-[#a1a1aa] hover:bg-[#fafafa] transition-colors cursor-pointer mb-5 shadow-2xs"
+          className="w-full py-2 px-3 rounded-xl bg-white border border-[#e4e4e7] text-xs text-[#71717a] flex items-center justify-between hover:border-[#a1a1aa] hover:bg-[#fafafa] transition-colors cursor-pointer mb-4 shadow-2xs"
         >
           <div className="flex items-center gap-2">
             <Search className="w-3.5 h-3.5 text-[#a1a1aa]" />
@@ -141,128 +179,82 @@ export default function Sidebar() {
         </button>
 
         {/* Navigation Items */}
-        <nav className="space-y-1 mb-6 text-xs font-medium text-[#52525b]">
+        <nav className="space-y-1 mb-5 text-xs font-medium text-[#52525b]">
           <button
             type="button"
             onClick={() => setCurrentView("landing")}
             className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl hover:bg-[#f4f4f5] hover:text-[#18181b] transition-colors cursor-pointer text-left"
           >
             <Globe className="w-4 h-4 text-[#71717a]" />
-            <span>Explore</span>
-          </button>
-
-          {/* Admin Portal Direct Link */}
-          <button
-            type="button"
-            onClick={() => setCurrentView("admin")}
-            className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl bg-[#18181b] text-white transition-colors cursor-pointer text-left font-semibold shadow-2xs"
-          >
-            <div className="flex items-center gap-3">
-              <Shield className="w-4 h-4" />
-              <span>Admin Portal</span>
-            </div>
-            <span className="text-[9px] font-mono bg-white text-[#18181b] px-1.5 py-0.5 rounded font-bold">
-              QDRANT
-            </span>
+            <span>Explore Universities</span>
           </button>
 
           <button
             type="button"
-            className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl hover:bg-[#f4f4f5] hover:text-[#18181b] transition-colors cursor-pointer text-left"
-          >
-            <BookOpen className="w-4 h-4 text-[#71717a]" />
-            <span>Library</span>
-          </button>
-          <button
-            type="button"
-            className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl hover:bg-[#f4f4f5] hover:text-[#18181b] transition-colors cursor-pointer text-left"
-          >
-            <FolderClosed className="w-4 h-4 text-[#71717a]" />
-            <span>Files</span>
-          </button>
-          <button
-            type="button"
+            onClick={handleHistoryClick}
             className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl hover:bg-[#f4f4f5] hover:text-[#18181b] transition-colors cursor-pointer text-left"
           >
             <History className="w-4 h-4 text-[#71717a]" />
-            <span>History</span>
+            <span>Chat History</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setCurrentView("landing")}
+            className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl hover:bg-[#f4f4f5] hover:text-[#18181b] transition-colors cursor-pointer text-left"
+          >
+            <BookOpen className="w-4 h-4 text-[#71717a]" />
+            <span>Prospectus Library</span>
           </button>
         </nav>
 
         {/* Chat History Grouping */}
-        <div className="space-y-5">
-          {/* Today Group */}
+        <div ref={historySectionRef} className="space-y-4 pt-2 border-t border-[#f4f4f5]">
+          <div className="text-[10px] font-bold text-[#a1a1aa] uppercase tracking-wider px-2.5 font-mono">
+            Recent Conversations
+          </div>
+
           {todaySessions.length > 0 && (
             <div>
-              <div className="text-[10px] font-bold text-[#a1a1aa] uppercase tracking-wider px-2.5 mb-1.5 font-mono">
+              <div className="text-[10px] font-semibold text-[#71717a] px-2.5 mb-1">
                 Today
               </div>
-              <div className="space-y-0.5">
-                {todaySessions.map((session) => (
-                  <button
-                    key={session.id}
-                    type="button"
-                    onClick={() => selectSession(session.id)}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs truncate block transition-colors cursor-pointer ${
-                      activeSessionId === session.id
-                        ? "bg-[#f4f4f5] text-[#18181b] font-semibold"
-                        : "text-[#71717a] hover:bg-[#f4f4f5] hover:text-[#18181b]"
-                    }`}
-                  >
-                    {session.title}
-                  </button>
-                ))}
-              </div>
+              <div className="space-y-0.5">{todaySessions.map(renderSessionItem)}</div>
             </div>
           )}
 
-          {/* Yesterday Group */}
           {yesterdaySessions.length > 0 && (
             <div>
-              <div className="text-[10px] font-bold text-[#a1a1aa] uppercase tracking-wider px-2.5 mb-1.5 font-mono">
+              <div className="text-[10px] font-semibold text-[#71717a] px-2.5 mb-1">
                 Yesterday
               </div>
-              <div className="space-y-0.5">
-                {yesterdaySessions.map((session) => (
-                  <button
-                    key={session.id}
-                    type="button"
-                    onClick={() => selectSession(session.id)}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs truncate block transition-colors cursor-pointer ${
-                      activeSessionId === session.id
-                        ? "bg-[#f4f4f5] text-[#18181b] font-semibold"
-                        : "text-[#71717a] hover:bg-[#f4f4f5] hover:text-[#18181b]"
-                    }`}
-                  >
-                    {session.title}
-                  </button>
-                ))}
-              </div>
+              <div className="space-y-0.5">{yesterdaySessions.map(renderSessionItem)}</div>
             </div>
           )}
 
-          {/* 7 Days Group */}
           {weekSessions.length > 0 && (
             <div>
-              <div className="text-[10px] font-bold text-[#a1a1aa] uppercase tracking-wider px-2.5 mb-1.5 font-mono">
-                7 days
+              <div className="text-[10px] font-semibold text-[#71717a] px-2.5 mb-1">
+                Last 7 Days
               </div>
-              <div className="space-y-0.5">
-                {weekSessions.map((session) => (
-                  <button
-                    key={session.id}
-                    type="button"
-                    onClick={() => selectSession(session.id)}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs truncate block transition-colors cursor-pointer ${
-                      activeSessionId === session.id
-                        ? "bg-[#f4f4f5] text-[#18181b] font-semibold"
-                        : "text-[#71717a] hover:bg-[#f4f4f5] hover:text-[#18181b]"
-                    }`}
-                  >
-                    {session.title}
-                  </button>
-                ))}
+              <div className="space-y-0.5">{weekSessions.map(renderSessionItem)}</div>
+            </div>
+          )}
+
+          {olderSessions.length > 0 && (
+            <div>
+              <div className="text-[10px] font-semibold text-[#71717a] px-2.5 mb-1">
+                Older
               </div>
+              <div className="space-y-0.5">{olderSessions.map(renderSessionItem)}</div>
+            </div>
+          )}
+
+          {sessions.length === 0 && (
+            <div className="px-2.5 py-4 text-center border border-dashed border-[#e4e4e7] rounded-2xl bg-white/50">
+              <MessageSquare className="w-4 h-4 text-[#a1a1aa] mx-auto mb-1.5" />
+              <p className="text-[11px] text-[#71717a] font-medium">No previous conversations</p>
+              <p className="text-[9px] text-[#a1a1aa] mt-0.5">Click + New chat to begin</p>
             </div>
           )}
         </div>
@@ -274,28 +266,36 @@ export default function Sidebar() {
           <div className="flex items-center gap-2.5 overflow-hidden">
             <img
               src={user?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"}
-              alt={user?.name || "Emerson Sterling"}
+              alt={user?.name || "Student"}
               className="w-8 h-8 rounded-full object-cover border border-[#e4e4e7] flex-shrink-0"
             />
             <div className="overflow-hidden">
               <div className="text-xs font-bold text-[#18181b] truncate flex items-center gap-1">
-                <span>{user?.name || "Emerson Sterling"}</span>
+                <span>{user?.name || "Student"}</span>
                 {user?.role === "admin" && (
-                  <span className="text-[8px] font-mono bg-[#18181b] text-white px-1 rounded">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentView("admin")}
+                    title="Open Admin Portal"
+                    className="text-[8px] font-mono bg-[#18181b] text-white px-1.5 py-0.5 rounded font-bold cursor-pointer hover:bg-[#3f3f46]"
+                  >
                     ADMIN
-                  </span>
+                  </button>
                 )}
               </div>
               <div className="text-[10px] text-[#71717a] truncate">
-                {user?.email || "sterlingr@gmail.com"}
+                {user?.email || "student@mentorx.edu"}
               </div>
             </div>
           </div>
 
           <button
             type="button"
-            onClick={() => openAuthModal("signin")}
-            title="Switch Account / Google Sign In"
+            onClick={() => {
+              logout();
+              setCurrentView("landing");
+            }}
+            title="Sign Out"
             className="p-1.5 rounded-lg text-[#71717a] hover:text-[#18181b] hover:bg-[#f4f4f5] transition-colors cursor-pointer flex-shrink-0"
           >
             <LogOut className="w-3.5 h-3.5" />

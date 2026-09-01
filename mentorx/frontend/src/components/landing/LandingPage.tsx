@@ -8,9 +8,11 @@ import RagComparisonSandbox from "./RagComparisonSandbox";
 import FeaturesGrid from "./FeaturesGrid";
 import TestimonialsSection from "./TestimonialsSection";
 import { useUIStore } from "@/store/useUIStore";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export default function LandingPage() {
   const { openAuthModal, setCurrentView } = useUIStore();
+  const { isAuthenticated } = useAuthStore();
 
   const faqs = [
     {
@@ -95,7 +97,13 @@ export default function LandingPage() {
           <div className="flex items-center gap-6 text-xs">
             <button
               type="button"
-              onClick={() => setCurrentView("workspace")}
+              onClick={() => {
+                if (!isAuthenticated) {
+                  openAuthModal("signin");
+                } else {
+                  setCurrentView("workspace");
+                }
+              }}
               className="hover:text-[#18181b] cursor-pointer"
             >
               Interactive Workspace

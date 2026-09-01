@@ -1,8 +1,10 @@
 from typing import Dict, Any, List
 from langchain_core.documents import Document
 from app.Pipeline.State import State
+from langsmith import traceable
 
 
+@traceable(name="mentorx_combine_docs", run_type="chain")
 def combine_docs_node(state: State) -> Dict[str, Any]:
     """
     Merges verified local academic documents (good_docs) with live web search results (web_docs).

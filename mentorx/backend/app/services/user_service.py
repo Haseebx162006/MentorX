@@ -19,18 +19,27 @@ class UserService:
         avatar: Optional[str] = None,
         study_track: str = "Pre-Medical",
     ) -> User:
+        from app.config.settings import settings
+
+        admin_emails = [e.strip().lower() for e in settings.ADMIN_EMAILS.split(",") if e.strip()]
+        is_admin = email.lower() in admin_emails or "admin" in email.lower()
+        role = "admin" if is_admin else "student"
+
         user = UserRepository.get_by_email(db, email)
         if user:
+            if is_admin and user.role != "admin":
+                user.role = "admin"
+                db.commit()
+                db.refresh(user)
             return UserRepository.update_last_active(db, user)
 
-        role = "admin" if "admin" in email.lower() else "student"
         new_user = User(
             id=f"usr_{uuid.uuid4().hex[:8]}",
             email=email,
             name=name,
             avatar=avatar or "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
             role=role,
-            study_track=study_track,
+            study_track="System Administrator" if role == "admin" else study_track,
             is_blocked=False,
         )
         return UserRepository.create(db, new_user)

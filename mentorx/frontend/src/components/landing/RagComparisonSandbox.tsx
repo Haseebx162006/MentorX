@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Check, X, Sparkles, Building, AlertCircle } from "lucide-react";
 import { useUIStore } from "@/store/useUIStore";
+import { useAuthStore } from "@/store/useAuthStore";
 import { useChatStore } from "@/store/useChatStore";
 
 interface ComparisonScenario {
@@ -63,14 +64,19 @@ const COMPARISON_SCENARIOS: ComparisonScenario[] = [
 
 export default function RagComparisonSandbox() {
   const [activeScenarioId, setActiveScenarioId] = useState<string>("nust-fast-cs");
-  const { setCurrentView } = useUIStore();
+  const { setCurrentView, openAuthModal } = useUIStore();
+  const { isAuthenticated } = useAuthStore();
   const { sendMessage } = useChatStore();
 
   const scenario = COMPARISON_SCENARIOS.find((s) => s.id === activeScenarioId) || COMPARISON_SCENARIOS[0];
 
   const handleTestInChat = () => {
-    setCurrentView("workspace");
-    sendMessage(`Analyze my university compatibility: ${scenario.studentProfile}`);
+    if (!isAuthenticated) {
+      openAuthModal("signin");
+    } else {
+      setCurrentView("workspace");
+      sendMessage(`Analyze my university compatibility: ${scenario.studentProfile}`);
+    }
   };
 
   return (

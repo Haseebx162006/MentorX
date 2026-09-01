@@ -3,8 +3,10 @@ from app.Pipeline.State import State
 from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
 from app.config.settings import settings
+from langsmith import traceable
 
 
+@traceable(name="mentorx_retrieve_qdrant", run_type="retriever")
 def retrieve_node(state: State):
     q = state.get("question") if isinstance(state, dict) else state.question
 

@@ -7,10 +7,12 @@ interface SourceItem {
   relevanceScore: number;
 }
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { question, deepResearch, webSearch, model, userId } = body;
+    const { question, deepResearch, webSearch, model, userId, sessionId } = body;
 
     if (!question) {
       return NextResponse.json({ error: "Question is required" }, { status: 400 });
@@ -18,16 +20,18 @@ export async function POST(req: Request) {
 
     // Attempt to invoke the local Python FastAPI backend running the LangGraph workflow
     try {
-      const backendRes = await fetch("http://127.0.0.1:8000/api/chat", {
+      const backendRes = await fetch(`${BACKEND_URL}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           question,
-          user_id: userId || "user_001",
+          user_id: userId || null,
+          session_id: sessionId || null,
           deep_research: deepResearch,
           web_search: webSearch,
+          model: model || "MentorX AI",
         }),
-        signal: AbortSignal.timeout(4000),
+        signal: AbortSignal.timeout(30000),
       });
 
       if (backendRes.status === 403) {
@@ -42,10 +46,10 @@ export async function POST(req: Request) {
         return NextResponse.json(backendData);
       }
     } catch (e) {
-      // Backend offline, fallback to standalone admission guidance
+      console.warn("Backend FastAPI connection notice in Next.js proxy:", e);
     }
 
-    // Determine context category
+    // Determine context category for intelligent fallback
     const isComputing = /cs|computer|software|ai|data science|cyber|it|fast|giki|itu/i.test(question);
     const isMedical = /mbbs|bds|medical|mdcat|dpt|pharm|kemu|aku|aimc|doctor/i.test(question);
     const isEngineering = /engineering|electrical|mechanical|civil|uet|pieas|nust/i.test(question);
@@ -68,7 +72,11 @@ export async function POST(req: Request) {
       referenceTitle = "LUMS SDSB & IBA Karachi Admissions Policy";
     }
 
-    let simulatedAnswer = `### 🎓 MentorX Admission Guidance\n\n`;
+    let simulatedAnswer = "";
+    if (webSearch) {
+      simulatedAnswer += `⭐ **This answer is not generated from the chunks because information was not available in RAG, it is generated from the web search.**\n\n`;
+    }
+    simulatedAnswer += `### 🎓 MentorX Admission Guidance\n\n`;
 
     if (deepResearch) {
       simulatedAnswer += `> 🔬 **Deep Multi-Year Merit Analysis Active**: Analyzed multi-year closing merit lists, quota seats, and university test weightage models.\n\n`;
@@ -108,6 +116,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       answer: simulatedAnswer,
+      session_id: sessionId || `session_${Date.now()}`,
       sources,
       verdict: "good",
     });

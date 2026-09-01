@@ -50,8 +50,9 @@ app.include_router(chat_router)
 
 @app.on_event("startup")
 async def on_startup():
-    """Initializes database schema and models on application startup."""
+    """Initializes database schema, models, and LangSmith tracing on application startup."""
     try:
+        settings.configure_langsmith()
         init_db()
         print("SQLAlchemy PostgreSQL database schema initialized successfully.")
     except Exception as e:

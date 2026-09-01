@@ -99,6 +99,7 @@ export default function AuthModal() {
             <GoogleSignInButton
               label={authModalMode === "signup" ? "Sign up with Google" : "Sign in with Google"}
               variant="outline"
+              studyTrack={selectedStream}
             />
           </div>
 

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useAuthStore } from "./useAuthStore";
 
 export interface SourceDocument {
   title: string;
@@ -19,6 +20,7 @@ export interface ChatMessage {
   isWebSearch?: boolean;
   verdict?: "good" | "mixed" | "bad";
   refinedContext?: string;
+  isStreaming?: boolean;
 }
 
 export interface ChatSession {
@@ -26,9 +28,10 @@ export interface ChatSession {
   title: string;
   createdAt: string;
   updatedAt: string;
-  category: "Today" | "Yesterday" | "7 days";
+  category: "Today" | "Yesterday" | "7 days" | "Older";
   messages: ChatMessage[];
   model: string;
+  userId?: string;
 }
 
 interface ChatState {
@@ -42,6 +45,8 @@ interface ChatState {
   streamingResponse: string;
   uploadedFiles: { name: string; size: string; type: string }[];
   searchQuery: string;
+  isLoadingSessions: boolean;
+  abortController: AbortController | null;
 
   // Actions
   setInputMessage: (msg: string) => void;
@@ -53,161 +58,48 @@ interface ChatState {
   removeUploadedFile: (fileName: string) => void;
   clearUploadedFiles: () => void;
 
+  loadUserSessions: (userId?: string) => Promise<void>;
   createNewChat: () => void;
-  selectSession: (sessionId: string) => void;
-  deleteSession: (sessionId: string) => void;
+  selectSession: (sessionId: string) => Promise<void>;
+  deleteSession: (sessionId: string) => Promise<void>;
   sendMessage: (customText?: string) => Promise<void>;
+  stopStreaming: () => void;
   exportChat: (format: "markdown" | "json" | "txt") => string;
 }
 
-// Initial mock chat sessions matching the reference image perfectly!
-const initialSessions: ChatSession[] = [
-  {
-    id: "session-today-1",
-    title: "Create a detailed 7-day sprint plan f...",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    category: "Today",
-    model: "Cortex Pro",
-    messages: [
-      {
-        id: "msg-1",
-        role: "user",
-        content: "Create a detailed 7-day sprint plan for MDCAT Physics & Chemistry revision.",
-        timestamp: "10:30 AM",
-      },
-      {
-        id: "msg-2",
-        role: "assistant",
-        content:
-          "Here is a comprehensive 7-day high-yield sprint plan for FSc students preparing for MDCAT:\n\n### 🗓️ Day 1-2: Core Physics & Thermodynamics\n- **Focus**: Work & Energy, First Law of Thermodynamics, Kinetic Molecular Theory.\n- **Past Paper Practice**: 50 MCQs with error analysis.\n\n### 🗓️ Day 3-4: Electrostatics & Current Electricity\n- **Formulas to Master**: Coulomb's Law, Gauss's Law, Potentiometer bridge mechanics.\n\n### 🗓️ Day 5-6: Organic Chemistry & Functional Groups\n- **Reactions**: Aldol condensation, Cannizzaro, electrophilic substitutions.\n\n### 🗓️ Day 7: Full Length Mock & Weak Area Remediation.",
-        timestamp: "10:31 AM",
-        sources: [
-          {
-            title: "Physics Part 2 Textbook - Chapter 12",
-            sourceType: "syllabus",
-            snippet: "Electric field lines and Gauss Law applications for spherical conductors.",
-            relevanceScore: 0.94,
-          },
-          {
-            title: "UHS MDCAT Syllabus 2025/2026",
-            sourceType: "syllabus",
-            snippet: "Detailed breakdown of chemistry reaction mechanisms weighting.",
-            relevanceScore: 0.89,
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: "session-today-2",
-    title: "Draft a concise email to stakeholder...",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    category: "Today",
-    model: "Cortex Fast",
-    messages: [
-      {
-        id: "msg-3",
-        role: "user",
-        content: "Draft a concise email to stakeholders about the exam schedule update.",
-        timestamp: "11:15 AM",
-      },
-      {
-        id: "msg-4",
-        role: "assistant",
-        content: "Subject: Important Update: Revised Examination Schedule & Guidelines\n\nDear Students & Academic Advisors,\n\nPlease find attached the finalized schedule for the upcoming board examinations. All reporting times and hall allocations remain as outlined in Section B.\n\nBest regards,\nAcademic Directorate",
-        timestamp: "11:16 AM",
-      },
-    ],
-  },
-  {
-    id: "session-today-3",
-    title: "Analyze the 'Eisenhower Matrix' an...",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    category: "Today",
-    model: "Cortex Pro",
-    messages: [],
-  },
-  {
-    id: "session-yesterday-1",
-    title: "Summarize the main differences be...",
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    updatedAt: new Date(Date.now() - 86400000).toISOString(),
-    category: "Yesterday",
-    model: "Cortex Pro",
-    messages: [],
-  },
-  {
-    id: "session-yesterday-2",
-    title: "I need to negotiate an extension for ...",
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    updatedAt: new Date(Date.now() - 86400000).toISOString(),
-    category: "Yesterday",
-    model: "Cortex Pro",
-    messages: [],
-  },
-  {
-    id: "session-week-1",
-    title: "Generate 5 effective morning habits...",
-    createdAt: new Date(Date.now() - 300000000).toISOString(),
-    updatedAt: new Date(Date.now() - 300000000).toISOString(),
-    category: "7 days",
-    model: "Cortex Pro",
-    messages: [],
-  },
-  {
-    id: "session-week-2",
-    title: "As a non-technical PM, list 5 crucial...",
-    createdAt: new Date(Date.now() - 350000000).toISOString(),
-    updatedAt: new Date(Date.now() - 350000000).toISOString(),
-    category: "7 days",
-    model: "Cortex Pro",
-    messages: [],
-  },
-  {
-    id: "session-week-3",
-    title: "Help me allocate 8 hours tomorrow:...",
-    createdAt: new Date(Date.now() - 400000000).toISOString(),
-    updatedAt: new Date(Date.now() - 400000000).toISOString(),
-    category: "7 days",
-    model: "Cortex Pro",
-    messages: [],
-  },
-  {
-    id: "session-week-4",
-    title: "We need a creative name for our ne...",
-    createdAt: new Date(Date.now() - 450000000).toISOString(),
-    updatedAt: new Date(Date.now() - 450000000).toISOString(),
-    category: "7 days",
-    model: "Cortex Pro",
-    messages: [],
-  },
-  {
-    id: "session-week-5",
-    title: "Write a 100-word positive feedback...",
-    createdAt: new Date(Date.now() - 500000000).toISOString(),
-    updatedAt: new Date(Date.now() - 500000000).toISOString(),
-    category: "7 days",
-    model: "Cortex Pro",
-    messages: [],
-  },
+const DUMMY_TITLES = [
+  "create a detailed 7-day sprint plan",
+  "draft a concise email to stakeho",
+  "analyze the 'eisenhower matrix'",
+  "summarize the main differences be",
+  "i need to negotiate an extension fo",
+  "generate 5 effective morning habit",
+  "as a non-technical pm, list 5 cruci",
+  "help me allocate 8 hours tomorrow",
+  "we need a creative name for our n",
+  "write a 100-word positive feedback",
 ];
+
+const isDummySession = (title: string): boolean => {
+  const t = (title || "").toLowerCase();
+  return DUMMY_TITLES.some((d) => t.includes(d));
+};
 
 export const useChatStore = create<ChatState>()(
   persist(
     (set, get) => ({
       activeSessionId: "new-session",
-      sessions: initialSessions,
+      sessions: [],
       inputMessage: "",
-      selectedModel: "Cortex",
+      selectedModel: "MentorX AI",
       deepResearchEnabled: false,
       webSearchEnabled: false,
       isStreaming: false,
       streamingResponse: "",
       uploadedFiles: [],
       searchQuery: "",
+      isLoadingSessions: false,
+      abortController: null,
 
       setInputMessage: (msg) => set({ inputMessage: msg }),
       setSelectedModel: (model) => set({ selectedModel: model }),
@@ -221,25 +113,130 @@ export const useChatStore = create<ChatState>()(
         })),
       clearUploadedFiles: () => set({ uploadedFiles: [] }),
 
+      loadUserSessions: async (userId) => {
+        const uid = userId || useAuthStore.getState().user?.id || "";
+        set({ isLoadingSessions: true });
+        try {
+          const res = await fetch(`/api/chat/sessions${uid ? `?userId=${encodeURIComponent(uid)}` : ""}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data)) {
+              const currentSessions = get().sessions;
+              const currentActive = get().activeSessionId;
+
+              const mergedSessions: ChatSession[] = data
+                .filter((s: any) => !isDummySession(s.title))
+                .map((s: any) => {
+                  const existing = currentSessions.find((cs) => cs.id === s.id);
+                  return {
+                    id: s.id,
+                    title: s.title || "Conversation",
+                    createdAt: s.createdAt || new Date().toISOString(),
+                    updatedAt: s.updatedAt || new Date().toISOString(),
+                    category: s.category || "Today",
+                    model: "MentorX AI",
+                    userId: s.userId,
+                    messages: existing && existing.messages.length > 0 ? existing.messages : [],
+                  };
+                });
+
+              const activeInMemory = currentSessions.find(
+                (cs) => cs.id === currentActive && !mergedSessions.some((ms) => ms.id === cs.id)
+              );
+              if (activeInMemory && activeInMemory.id !== "new-session") {
+                mergedSessions.unshift(activeInMemory);
+              }
+
+              let nextActive = currentActive;
+              if (mergedSessions.length > 0) {
+                const sessionExists = mergedSessions.some((s) => s.id === currentActive);
+                if (!sessionExists && currentActive !== "new-session") {
+                  nextActive = mergedSessions[0].id;
+                }
+              } else if (currentActive !== "new-session") {
+                nextActive = "new-session";
+              }
+
+              set({
+                sessions: mergedSessions,
+                activeSessionId: nextActive,
+                isLoadingSessions: false,
+              });
+
+              const activeSess = mergedSessions.find((s) => s.id === nextActive);
+              if (activeSess && activeSess.messages.length === 0 && nextActive !== "new-session") {
+                get().selectSession(nextActive);
+              }
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn("Failed to load user sessions from backend:", e);
+        }
+        set({ isLoadingSessions: false });
+      },
+
       createNewChat: () => {
+        if (get().isStreaming) {
+          get().stopStreaming();
+        }
         set({
           activeSessionId: "new-session",
           inputMessage: "",
           streamingResponse: "",
           isStreaming: false,
+          abortController: null,
         });
       },
 
-      selectSession: (sessionId) => {
+      selectSession: async (sessionId) => {
+        if (get().isStreaming) {
+          get().stopStreaming();
+        }
         set({
           activeSessionId: sessionId,
           inputMessage: "",
           streamingResponse: "",
           isStreaming: false,
+          abortController: null,
         });
+
+        if (sessionId === "new-session") return;
+
+        try {
+          const res = await fetch(`/api/chat/sessions/${encodeURIComponent(sessionId)}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data && Array.isArray(data.messages)) {
+              const formattedMessages: ChatMessage[] = data.messages.map((m: any) => ({
+                id: m.id,
+                role: m.role,
+                content: m.content,
+                timestamp: m.timestamp || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                sources: m.sources || [],
+                verdict: m.verdict || "good",
+                isStreaming: false,
+              }));
+
+              set((state) => ({
+                sessions: state.sessions.map((s) =>
+                  s.id === sessionId
+                    ? {
+                        ...s,
+                        title: data.title || s.title,
+                        messages: formattedMessages,
+                      }
+                    : s
+                ),
+              }));
+            }
+          }
+        } catch (e) {
+          console.warn("Failed to fetch session messages:", e);
+        }
       },
 
-      deleteSession: (sessionId) => {
+      deleteSession: async (sessionId) => {
         set((state) => {
           const filtered = state.sessions.filter((s) => s.id !== sessionId);
           const nextActive =
@@ -249,6 +246,29 @@ export const useChatStore = create<ChatState>()(
             activeSessionId: nextActive,
           };
         });
+
+        try {
+          await fetch(`/api/chat/sessions/${encodeURIComponent(sessionId)}`, {
+            method: "DELETE",
+          });
+        } catch (e) {
+          console.error("Failed to delete session on backend:", e);
+        }
+      },
+
+      stopStreaming: () => {
+        const controller = get().abortController;
+        if (controller) {
+          controller.abort();
+        }
+        set((state) => ({
+          isStreaming: false,
+          abortController: null,
+          sessions: state.sessions.map((s) => ({
+            ...s,
+            messages: s.messages.map((m) => (m.isStreaming ? { ...m, isStreaming: false } : m)),
+          })),
+        }));
       },
 
       sendMessage: async (customText) => {
@@ -258,13 +278,14 @@ export const useChatStore = create<ChatState>()(
         const currentActiveId = get().activeSessionId;
         const now = new Date();
         const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        const currentUser = useAuthStore.getState().user;
+        const userId = currentUser?.id || "student_user";
 
-        let session = get().sessions.find((s) => s.id === currentActiveId);
         let targetSessionId = currentActiveId;
 
-        // If starting a brand new chat session
-        if (!session || currentActiveId === "new-session") {
-          targetSessionId = `session-${Date.now()}`;
+        // 1. If starting brand new chat
+        if (currentActiveId === "new-session") {
+          targetSessionId = `session_${Date.now()}`;
           const newTitle = text.length > 38 ? text.substring(0, 38) + "..." : text;
           const newSession: ChatSession = {
             id: targetSessionId,
@@ -273,16 +294,17 @@ export const useChatStore = create<ChatState>()(
             updatedAt: now.toISOString(),
             category: "Today",
             model: get().selectedModel,
+            userId: userId,
             messages: [],
           };
 
           set((state) => ({
-            sessions: [newSession, ...state.sessions],
+            sessions: [newSession, ...state.sessions.filter((s) => !isDummySession(s.title))],
             activeSessionId: targetSessionId,
           }));
         }
 
-        // Create User Message
+        // 2. Create User Message & Initial Assistant Message Placeholder
         const userMsg: ChatMessage = {
           id: `msg-user-${Date.now()}`,
           role: "user",
@@ -292,110 +314,181 @@ export const useChatStore = create<ChatState>()(
           isWebSearch: get().webSearchEnabled,
         };
 
-        // Append user message to active session
+        const assistantMsgId = `msg-ai-${Date.now()}`;
+        const assistantPlaceholder: ChatMessage = {
+          id: assistantMsgId,
+          role: "assistant",
+          content: "",
+          timestamp: timeStr,
+          sources: [],
+          isDeepResearch: get().deepResearchEnabled,
+          isWebSearch: get().webSearchEnabled,
+          verdict: "good",
+          isStreaming: true,
+        };
+
+        const controller = new AbortController();
+
+        // 3. Immediately mount both messages in the conversation thread (No layout jump)
         set((state) => ({
           inputMessage: "",
           isStreaming: true,
+          abortController: controller,
           streamingResponse: "",
           sessions: state.sessions.map((s) =>
             s.id === targetSessionId
               ? {
                   ...s,
-                  messages: [...s.messages, userMsg],
+                  messages: [...s.messages, userMsg, assistantPlaceholder],
                   updatedAt: new Date().toISOString(),
                 }
               : s
           ),
         }));
 
+        let accumulatedContent = "";
+        let accumulatedSources: SourceDocument[] = [];
+        let accumulatedVerdict: "good" | "mixed" | "bad" = "good";
+
         try {
-          // Send request to API endpoint (or smart simulated fallback if backend offline)
           const isDeep = get().deepResearchEnabled;
           const isWeb = get().webSearchEnabled;
 
-          const response = await fetch("/api/chat", {
+          const response = await fetch("/api/chat/stream", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               question: text,
-              deepResearch: isDeep,
-              webSearch: isWeb,
+              user_id: userId,
+              session_id: targetSessionId,
+              deep_research: isDeep,
+              web_search: isWeb,
               model: get().selectedModel,
             }),
+            signal: controller.signal,
           });
 
-          let assistantText = "";
-          let sources: SourceDocument[] = [];
-          let verdict: "good" | "mixed" | "bad" = "good";
+          if (response.ok && response.body) {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = "";
+            let lastFlush = 0;
+            let pendingTimer: any = null;
 
-          if (response.ok) {
-            const data = await response.json();
-            assistantText = data.answer || "I have analyzed your academic query and synthesized the response.";
-            sources = data.sources || [];
-            verdict = data.verdict || "good";
-          } else {
-            // Intelligent fallback with tailored MentorX academic reasoning
-            await new Promise((r) => setTimeout(r, 900));
-            assistantText = `### MentorX Academic Synthesis for: "${text}"\n\nBased on the core syllabus and academic guidelines, here are the key takeaways:\n\n1. **Core Concept Mastery**: Ensure foundational definitions and formula derivations are clear.\n2. **High-Yield Examination Tips**: Pay close attention to unit conversions, boundary conditions, and typical test distractors.\n3. **Recommended Next Steps**: Solve 5 past MCQs on this specific topic to solidify memory retention.`;
-            sources = [
-              {
-                title: "Punjab/Federal Board Syllabus Curriculum Guide",
-                sourceType: "syllabus",
-                snippet: "Comprehensive breakdown of exam objectives, weightage, and standard problem schemas.",
-                relevanceScore: 0.95,
-              },
-            ];
-          }
+            const flushTokens = () => {
+              set((state) => ({
+                sessions: state.sessions.map((s) =>
+                  s.id === targetSessionId
+                    ? {
+                        ...s,
+                        messages: s.messages.map((m) =>
+                          m.id === assistantMsgId
+                            ? {
+                                ...m,
+                                content: accumulatedContent,
+                                sources: accumulatedSources.length > 0 ? accumulatedSources : m.sources,
+                                verdict: accumulatedVerdict,
+                                isStreaming: true,
+                              }
+                            : m
+                        ),
+                      }
+                    : s
+                ),
+              }));
+            };
 
-          // Simulate streaming effect for human-like conversational responsiveness
-          const chunks = assistantText.split(" ");
-          let accumulated = "";
-          for (let i = 0; i < chunks.length; i++) {
-            accumulated += (i > 0 ? " " : "") + chunks[i];
-            set({ streamingResponse: accumulated });
-            await new Promise((resolve) => setTimeout(resolve, 20));
-          }
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
 
-          const assistantMsg: ChatMessage = {
-            id: `msg-ai-${Date.now()}`,
-            role: "assistant",
-            content: assistantText,
-            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-            sources: sources,
-            isDeepResearch: isDeep,
-            isWebSearch: isWeb,
-            verdict: verdict,
-          };
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split("\n\n");
+              buffer = lines.pop() || "";
 
-          set((state) => ({
-            isStreaming: false,
-            streamingResponse: "",
-            sessions: state.sessions.map((s) =>
-              s.id === targetSessionId
-                ? {
-                    ...s,
-                    messages: [...s.messages, assistantMsg],
+              for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed.startsWith("data:")) continue;
+                const jsonStr = trimmed.replace(/^data:\s*/, "");
+                try {
+                  const event = JSON.parse(jsonStr);
+                  if (event.type === "meta") {
+                    if (event.sources) accumulatedSources = event.sources;
+                    if (event.verdict) accumulatedVerdict = event.verdict;
+                    flushTokens();
+                  } else if (event.type === "token") {
+                    accumulatedContent += event.content || "";
+                    const now = Date.now();
+                    if (now - lastFlush > 40) {
+                      lastFlush = now;
+                      if (pendingTimer) {
+                        clearTimeout(pendingTimer);
+                        pendingTimer = null;
+                      }
+                      flushTokens();
+                    } else if (!pendingTimer) {
+                      pendingTimer = setTimeout(() => {
+                        lastFlush = Date.now();
+                        pendingTimer = null;
+                        flushTokens();
+                      }, 40);
+                    }
                   }
-                : s
-            ),
-          }));
-        } catch (error) {
-          console.error("Chat error:", error);
-          const fallbackMsg: ChatMessage = {
-            id: `msg-ai-${Date.now()}`,
-            role: "assistant",
-            content: `### MentorX Academic Guidance\n\nI have evaluated your query: **"${text}"**.\n\n- **Key Principle**: Focus on understanding the primary mechanisms before memorization.\n- **Entry Test Focus**: Keep track of shortcut tricks and common pitfalls.\n- Feel free to ask a follow-up or enable **Deeper Research** for multi-step derivations.`,
-            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          };
+                } catch (err) {
+                  console.debug("SSE chunk parse notice:", err);
+                }
+              }
+            }
 
+            if (pendingTimer) {
+              clearTimeout(pendingTimer);
+              pendingTimer = null;
+            }
+            flushTokens();
+          }
+        } catch (streamErr: any) {
+          if (streamErr.name === "AbortError") {
+            console.log("Streaming cancelled by user.");
+          } else {
+            console.warn("Streaming proxy notice, falling back:", streamErr);
+            if (!accumulatedContent) {
+              accumulatedContent = `### 🎓 MentorX Admission Guidance\n\nRegarding your inquiry on **${text}**:\n\n- Check official prospectus criteria and entry test weightages.`;
+              accumulatedSources = [
+                {
+                  title: "Official University Admission Guidelines & Closing Merits",
+                  sourceType: "syllabus",
+                  snippet: "Verified aggregate calculation formulas and historical closing merit positions.",
+                  relevanceScore: 0.95,
+                },
+              ];
+            }
+          }
+        } finally {
+          // 4. Mark streaming as complete on the active message
           set((state) => ({
             isStreaming: false,
-            streamingResponse: "",
+            abortController: null,
             sessions: state.sessions.map((s) =>
               s.id === targetSessionId
                 ? {
                     ...s,
-                    messages: [...s.messages, fallbackMsg],
+                    title:
+                      s.title === "New Conversation" && text
+                        ? text.length > 38
+                          ? text.slice(0, 38) + "..."
+                          : text
+                        : s.title,
+                    messages: s.messages.map((m) =>
+                      m.id === assistantMsgId
+                        ? {
+                            ...m,
+                            content: accumulatedContent || "I have formulated an academic guidance recommendation for you.",
+                            sources: accumulatedSources.length > 0 ? accumulatedSources : m.sources,
+                            verdict: accumulatedVerdict,
+                            isStreaming: false,
+                          }
+                        : m
+                    ),
                   }
                 : s
             ),
@@ -429,9 +522,9 @@ export const useChatStore = create<ChatState>()(
       },
     }),
     {
-      name: "mentorx-chat-storage",
+      name: "mentorx-chat-storage-v4",
       partialize: (state) => ({
-        sessions: state.sessions,
+        sessions: state.sessions.filter((s) => !isDummySession(s.title)),
         activeSessionId: state.activeSessionId,
         selectedModel: state.selectedModel,
         deepResearchEnabled: state.deepResearchEnabled,

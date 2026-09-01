@@ -1,4 +1,5 @@
-from models.user import User
-from models.document import Document
+from app.models.user import User
+from app.models.document import Document
+from app.models.chat import ChatSession, ChatMessage
 
-__all__ = ["User", "Document"]
+__all__ = ["User", "Document", "ChatSession", "ChatMessage"]

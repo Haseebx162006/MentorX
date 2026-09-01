@@ -1,5 +1,7 @@
+import re
 from pydantic import BaseModel
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 from app.LLM.llm import create_llm
 from app.config.settings import settings
 
@@ -11,23 +13,40 @@ class WebQuery(BaseModel):
 llm = create_llm(
     model=settings.GROQ_MODEL,
     api_key=settings.GROQ_API_KEY,
-    temperature=0.7,
-    max_tokens=2000,
+    temperature=0.2,
+    max_tokens=100,
 )
 
 rewrite_prompt = ChatPromptTemplate.from_messages(
     [
         (
             "system",
-            "Rewrite the user question into a web search query composed of keywords.\n"
-            "Rules:\n"
-            "- Keep it short (6-14 words).\n"
-            "- If the question implies recency (e.g., recent/latest/last week/last month), add a constraint like (last\n"
-            "- Do NOT answer the question.\n"
-            "- Return JSON with a single key: query",
+            "You are a search query optimizer. Given a user question, rewrite it into a clear, concise keyword search query (3 to 8 words) for Google/Tavily search.\n"
+            "Do NOT answer the question.\n"
+            "Output ONLY the search query text, without quotes or additional text.",
         ),
         ("human", "Question: {question}"),
     ]
 )
 
-rewrite_chain = rewrite_prompt | llm.with_structured_output(WebQuery)
+
+class ResilientRewriteChain:
+    def invoke(self, inputs: dict) -> WebQuery:
+        q = inputs.get("question", "")
+        try:
+            chain = rewrite_prompt | llm | StrOutputParser()
+            raw_output = chain.invoke({"question": q})
+            # Clean up query
+            clean = raw_output.strip().strip('"').strip("'")
+            # If output looks like JSON, extract query
+            if "query" in clean:
+                match = re.search(r'["\']query["\']\s*:\s*["\']([^"\']+)["\']', clean)
+                if match:
+                    clean = match.group(1)
+            return WebQuery(query=clean if clean else q)
+        except Exception as e:
+            print(f"Rewrite query fallback notice: {e}")
+            return WebQuery(query=q)
+
+
+rewrite_chain = ResilientRewriteChain()

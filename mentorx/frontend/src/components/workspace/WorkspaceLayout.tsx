@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import GlowingOrb from "./GlowingOrb";
@@ -11,7 +11,6 @@ import SearchModal from "../modals/SearchModal";
 import SavedPromptsModal from "../modals/SavedPromptsModal";
 import ExportModal from "../modals/ExportModal";
 import HelpModal from "../modals/HelpModal";
-import AuthModal from "../auth/AuthModal";
 import { useChatStore } from "@/store/useChatStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useUIStore } from "@/store/useUIStore";
@@ -19,8 +18,16 @@ import { Languages } from "lucide-react";
 
 export default function WorkspaceLayout() {
   const { activeSessionId, sessions } = useChatStore();
-  const { user } = useAuthStore();
-  const { setHelpModalOpen, language, setLanguage } = useUIStore();
+  const { user, isAuthenticated } = useAuthStore();
+  const { setHelpModalOpen, language, setLanguage, setCurrentView, openAuthModal } = useUIStore();
+
+  // Protect workspace: if unauthenticated, redirect to landing & prompt login
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setCurrentView("landing");
+      openAuthModal("signin");
+    }
+  }, [isAuthenticated, setCurrentView, openAuthModal]);
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const hasMessages = activeSession && activeSession.messages.length > 0;
@@ -43,16 +50,16 @@ export default function WorkspaceLayout() {
 
         {/* Center Workspace Body */}
         {!hasMessages ? (
-          /* Home / Welcome Screen View (Comfortable vertical centering without clipping) */
+          /* Welcome Screen View */
           <div className="flex-1 overflow-y-auto min-h-0 px-4 sm:px-8 py-2 custom-scrollbar flex flex-col items-center justify-center">
             <div className="w-full max-w-2xl flex flex-col items-center text-center my-auto">
-              {/* Polished 3D Kinetic Core */}
+              {/* 3D Kinetic Core */}
               <GlowingOrb />
 
               {/* Greeting Typography */}
               <div className="mb-4">
                 <h2 className="text-sm sm:text-base font-medium text-[#71717a] tracking-tight">
-                  Hello, {user?.name?.split(" ")[0] || "Emerson"}
+                  Hello, {user?.name?.split(" ")[0] || "there"}
                 </h2>
                 <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#18181b] tracking-tight mt-0.5">
                   How can I assist you today?
@@ -70,15 +77,13 @@ export default function WorkspaceLayout() {
           </div>
         ) : (
           /* Active Chat Thread View */
-          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
             {/* Scrollable Messages Area */}
-            <div className="flex-1 overflow-y-auto min-h-0 px-4 sm:px-8 py-4 custom-scrollbar">
-              <ChatThread />
-            </div>
+            <ChatThread />
 
-            {/* Pinned Bottom Prompt Input Area */}
-            <div className="flex-shrink-0 w-full px-4 sm:px-8 pb-3 pt-1 bg-gradient-to-t from-white via-white to-transparent">
-              <div className="max-w-3xl mx-auto">
+            {/* Floating Bottom Prompt Bar with Fade Backdrop */}
+            <div className="absolute bottom-0 left-0 right-0 w-full px-4 sm:px-8 pb-3 pt-6 bg-gradient-to-t from-white via-white/95 to-transparent pointer-events-none z-10">
+              <div className="max-w-3xl mx-auto pointer-events-auto">
                 <PromptInput />
               </div>
             </div>
@@ -86,10 +91,10 @@ export default function WorkspaceLayout() {
         )}
 
         {/* Bottom Footer Bar */}
-        <footer className="h-9 px-6 border-t border-[#f4f4f5] flex items-center justify-between text-xs text-[#71717a] bg-white select-none flex-shrink-0 z-10">
-          {/* Left/Center Discord Link */}
+        <footer className="h-9 px-6 border-t border-[#f4f4f5] flex items-center justify-between text-xs text-[#71717a] bg-white select-none flex-shrink-0 z-20">
+          {/* Discord Community */}
           <div className="text-[11px] text-[#71717a] flex items-center gap-1">
-            <span>Join the valerius community for more insights</span>
+            <span>Join the MentorX community for admission updates</span>
             <a
               href="https://discord.com"
               target="_blank"
@@ -100,7 +105,7 @@ export default function WorkspaceLayout() {
             </a>
           </div>
 
-          {/* Right Action Icons */}
+          {/* Action Icons */}
           <div className="flex items-center gap-2">
             {/* Language Switcher */}
             <button
@@ -126,12 +131,11 @@ export default function WorkspaceLayout() {
         </footer>
       </div>
 
-      {/* Global Modals */}
+      {/* Workspace Modals */}
       <SearchModal />
       <SavedPromptsModal />
       <ExportModal />
       <HelpModal />
-      <AuthModal />
     </div>
   );
 }

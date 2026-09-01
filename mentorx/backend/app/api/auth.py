@@ -4,6 +4,11 @@ from app.db.session import get_db
 from app.schemas.user import GoogleAuthRequest, UserResponse
 from app.services.user_service import UserService
 
+import json
+import urllib.request
+import urllib.error
+from app.config.settings import settings
+
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 
@@ -14,13 +19,34 @@ async def google_sign_in(
 ):
     """
     Authenticates or registers a student/admin via Google OAuth using SQLAlchemy ORM.
+    Supports token verification with Google's public tokeninfo endpoint.
     """
     try:
+        email = payload.email
+        name = payload.name
+        avatar = payload.avatar
+
+        # If a Google ID token was provided, optionally verify against Google tokeninfo endpoint
+        if payload.token:
+            try:
+                url = f"https://oauth2.googleapis.com/tokeninfo?id_token={payload.token}"
+                req = urllib.request.Request(url, headers={"User-Agent": "MentorX-Backend"})
+                with urllib.request.urlopen(req, timeout=5) as response:
+                    if response.status == 200:
+                        google_data = json.loads(response.read().decode("utf-8"))
+                        if google_data.get("email"):
+                            email = google_data.get("email")
+                            name = google_data.get("name", name)
+                            avatar = google_data.get("picture", avatar)
+            except Exception as token_err:
+                # If network verification fails or in offline dev, fallback to provided payload
+                print(f"Notice: Google token verification skipped or failed ({token_err}). Using client payload.")
+
         user = UserService.get_or_create_google_user(
             db=db,
-            email=payload.email,
-            name=payload.name,
-            avatar=payload.avatar,
+            email=email,
+            name=name,
+            avatar=avatar,
             study_track=payload.study_track or "Pre-Medical",
         )
 

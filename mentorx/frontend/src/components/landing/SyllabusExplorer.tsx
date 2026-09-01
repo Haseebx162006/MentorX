@@ -13,6 +13,7 @@ import {
   Building2,
 } from "lucide-react";
 import { useUIStore } from "@/store/useUIStore";
+import { useAuthStore } from "@/store/useAuthStore";
 import { useChatStore } from "@/store/useChatStore";
 
 interface UniversityTrack {
@@ -160,14 +161,19 @@ const UNIVERSITY_TRACKS: UniversityTrack[] = [
 
 export default function SyllabusExplorer() {
   const [selectedTrackId, setSelectedTrackId] = useState<string>("computing");
-  const { setCurrentView } = useUIStore();
+  const { setCurrentView, openAuthModal } = useUIStore();
+  const { isAuthenticated } = useAuthStore();
   const { sendMessage } = useChatStore();
 
   const currentTrack = UNIVERSITY_TRACKS.find((t) => t.id === selectedTrackId) || UNIVERSITY_TRACKS[0];
 
   const handleAskMentor = (prompt: string) => {
-    setCurrentView("workspace");
-    sendMessage(prompt);
+    if (!isAuthenticated) {
+      openAuthModal("signin");
+    } else {
+      setCurrentView("workspace");
+      sendMessage(prompt);
+    }
   };
 
   return (

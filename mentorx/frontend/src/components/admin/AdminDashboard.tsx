@@ -55,111 +55,9 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [trackFilter, setTrackFilter] = useState("All");
 
-  // Fallback initial data if FastAPI backend is starting
-  const [users, setUsers] = useState<UserRecord[]>([
-    {
-      id: "admin_001",
-      email: "admin@mentorx.edu",
-      name: "Admin Supervisor",
-      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-      role: "admin",
-      study_track: "System Administrator",
-      is_blocked: false,
-      created_at: "2026-08-01",
-      last_active: "Just now",
-    },
-    {
-      id: "user_001",
-      email: "ayesha.malik@gmail.com",
-      name: "Ayesha Malik",
-      avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
-      role: "student",
-      study_track: "FSc Pre-Medical",
-      is_blocked: false,
-      created_at: "2026-08-25",
-      last_active: "10 mins ago",
-    },
-    {
-      id: "user_002",
-      email: "hamza.tariq@gmail.com",
-      name: "Hamza Tariq",
-      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-      role: "student",
-      study_track: "FSc Pre-Engineering",
-      is_blocked: false,
-      created_at: "2026-08-27",
-      last_active: "2 hours ago",
-    },
-    {
-      id: "user_003",
-      email: "zainab.fatima@gmail.com",
-      name: "Zainab Fatima",
-      avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80",
-      role: "student",
-      study_track: "ICS (Computer Science)",
-      is_blocked: false,
-      created_at: "2026-08-28",
-      last_active: "1 day ago",
-    },
-    {
-      id: "user_004",
-      email: "bilal.khan@gmail.com",
-      name: "Bilal Khan",
-      avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
-      role: "student",
-      study_track: "A-Levels (Pre-Eng)",
-      is_blocked: true,
-      created_at: "2026-08-29",
-      last_active: "3 days ago",
-    },
-  ]);
-
-  const [documents, setDocuments] = useState<IngestedDoc[]>([
-    {
-      id: "doc_001",
-      filename: "NUST_UG_Prospectus_2025.pdf",
-      title: "NUST Undergraduate Admission Policy & NET Weightages",
-      subject: "NUST Islamabad",
-      board: "Admission & NET Criteria",
-      chunk_count: 342,
-      status: "indexed",
-      uploaded_by: "Admin Supervisor",
-      created_at: "2026-08-30",
-    },
-    {
-      id: "doc_002",
-      filename: "FAST_Closing_Merit_Lists_2024.pdf",
-      title: "FAST-NUCES Historical Closing Merits (CS/SE/AI/DS)",
-      subject: "FAST-NUCES",
-      board: "Merit Lists & Cutoffs",
-      chunk_count: 288,
-      status: "indexed",
-      uploaded_by: "Admin Supervisor",
-      created_at: "2026-08-30",
-    },
-    {
-      id: "doc_003",
-      filename: "LUMS_Financial_Aid_NOP_Criteria.pdf",
-      title: "LUMS National Outreach Program (NOP) Full Scholarships",
-      subject: "LUMS Lahore",
-      board: "Financial Aid & Scholarships",
-      chunk_count: 415,
-      status: "indexed",
-      uploaded_by: "Admin Supervisor",
-      created_at: "2026-08-29",
-    },
-    {
-      id: "doc_004",
-      filename: "HEC_PreMed_to_Computing_Policy.pdf",
-      title: "HEC Pre-Medical to Computing / BSCS Eligibility Rules",
-      subject: "Higher Education Commission",
-      board: "HEC National Policy",
-      chunk_count: 160,
-      status: "indexed",
-      uploaded_by: "Admin Supervisor",
-      created_at: "2026-08-28",
-    },
-  ]);
+  const [users, setUsers] = useState<UserRecord[]>([]);
+  const [documents, setDocuments] = useState<IngestedDoc[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(false);
 
   // Upload Form State
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -167,28 +65,31 @@ export default function AdminDashboard() {
   const [docTitle, setDocTitle] = useState("");
   const [docSubject, setDocSubject] = useState("NUST Islamabad");
   const [docBoard, setDocBoard] = useState("Admission & NET Criteria");
-  const [chunkSize, setChunkSize] = useState(1000);
-  const [chunkOverlap, setChunkOverlap] = useState(300);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+
   // Fetch Users & Documents from FastAPI on Mount
   const fetchBackendData = async () => {
+    setIsLoadingData(true);
     try {
-      const usersRes = await fetch("http://127.0.0.1:8000/api/admin/users");
+      const usersRes = await fetch(`${API_URL}/api/admin/users`);
       if (usersRes.ok) {
         const data = await usersRes.json();
         setUsers(data);
       }
 
-      const docsRes = await fetch("http://127.0.0.1:8000/api/admin/documents");
+      const docsRes = await fetch(`${API_URL}/api/admin/documents`);
       if (docsRes.ok) {
         const data = await docsRes.json();
         setDocuments(data);
       }
     } catch (e) {
-      // Backend not running on 8000 yet, fallback data remains active
+      console.warn("Notice: Backend server not reachable yet.");
+    } finally {
+      setIsLoadingData(false);
     }
   };
 
@@ -255,8 +156,6 @@ export default function AdminDashboard() {
     formData.append("title", docTitle || selectedFile?.name || "University Admission Guide");
     formData.append("subject", docSubject);
     formData.append("board", docBoard);
-    formData.append("chunk_size", chunkSize.toString());
-    formData.append("chunk_overlap", chunkOverlap.toString());
 
     try {
       const interval = setInterval(() => {
@@ -497,76 +396,88 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#f4f4f5]">
-                    {filteredUsers.map((u) => {
-                      const isBlocked = Boolean(u.is_blocked);
-                      return (
-                        <tr key={u.id} className="hover:bg-[#fafafa] transition-colors">
-                          <td className="py-3.5 px-4">
-                            <div className="flex items-center gap-3">
-                              <img
-                                src={u.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150"}
-                                alt={u.name}
-                                className="w-8 h-8 rounded-full object-cover border border-[#e4e4e7]"
-                              />
-                              <div>
-                                <div className="font-bold text-[#18181b]">{u.name}</div>
-                                <div className="text-[10px] text-[#a1a1aa] font-mono">{u.id}</div>
+                    {filteredUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-12 text-center text-[#71717a]">
+                          <Users className="w-8 h-8 mx-auto mb-2 text-[#d4d4d8]" />
+                          <div className="font-semibold text-xs text-[#18181b]">No registered users found</div>
+                          <div className="text-[11px] text-[#a1a1aa] mt-0.5">
+                            When students or admins sign in, their live account records will appear here.
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredUsers.map((u) => {
+                        const isBlocked = Boolean(u.is_blocked);
+                        return (
+                          <tr key={u.id} className="hover:bg-[#fafafa] transition-colors">
+                            <td className="py-3.5 px-4">
+                              <div className="flex items-center gap-3">
+                                <img
+                                  src={u.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150"}
+                                  alt={u.name}
+                                  className="w-8 h-8 rounded-full object-cover border border-[#e4e4e7]"
+                                />
+                                <div>
+                                  <div className="font-bold text-[#18181b]">{u.name}</div>
+                                  <div className="text-[10px] text-[#a1a1aa] font-mono">{u.id}</div>
+                                </div>
                               </div>
-                            </div>
-                          </td>
+                            </td>
 
-                          <td className="py-3.5 px-4 font-mono text-[#52525b]">{u.email}</td>
+                            <td className="py-3.5 px-4 font-mono text-[#52525b]">{u.email}</td>
 
-                          <td className="py-3.5 px-4">
-                            <span className="px-2.5 py-1 rounded-md bg-[#f4f4f5] text-[#18181b] font-medium text-[11px]">
-                              {u.study_track}
-                            </span>
-                          </td>
-
-                          <td className="py-3.5 px-4">
-                            <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
-                                u.role === "admin"
-                                  ? "bg-[#18181b] text-white"
-                                  : "bg-[#e4e4e7] text-[#52525b]"
-                              }`}
-                            >
-                              {u.role.toUpperCase()}
-                            </span>
-                          </td>
-
-                          <td className="py-3.5 px-4">
-                            {isBlocked ? (
-                              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#dc2626] bg-[#fee2e2] px-2.5 py-0.5 rounded-full">
-                                <XCircle className="w-3 h-3" /> Blocked
+                            <td className="py-3.5 px-4">
+                              <span className="px-2.5 py-1 rounded-md bg-[#f4f4f5] text-[#18181b] font-medium text-[11px]">
+                                {u.study_track}
                               </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#15803d] bg-[#dcfce7] px-2.5 py-0.5 rounded-full">
-                                <CheckCircle2 className="w-3 h-3" /> Active
-                              </span>
-                            )}
-                          </td>
+                            </td>
 
-                          <td className="py-3.5 px-4 text-right">
-                            {u.role === "admin" ? (
-                              <span className="text-[11px] text-[#a1a1aa] italic">Super Admin</span>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => handleToggleBlock(u.id, isBlocked)}
-                                className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                                  isBlocked
-                                    ? "bg-[#dcfce7] text-[#15803d] hover:bg-[#bbf7d0] border border-[#86efac]"
-                                    : "bg-[#fee2e2] text-[#dc2626] hover:bg-[#fecaca] border border-[#fca5a5]"
+                            <td className="py-3.5 px-4">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                                  u.role === "admin"
+                                    ? "bg-[#18181b] text-white"
+                                    : "bg-[#e4e4e7] text-[#52525b]"
                                 }`}
                               >
-                                {isBlocked ? "Unblock Access" : "Block Student"}
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
+                                {u.role.toUpperCase()}
+                              </span>
+                            </td>
+
+                            <td className="py-3.5 px-4">
+                              {isBlocked ? (
+                                <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#dc2626] bg-[#fee2e2] px-2.5 py-0.5 rounded-full">
+                                  <XCircle className="w-3 h-3" /> Blocked
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#15803d] bg-[#dcfce7] px-2.5 py-0.5 rounded-full">
+                                  <CheckCircle2 className="w-3 h-3" /> Active
+                                </span>
+                              )}
+                            </td>
+
+                            <td className="py-3.5 px-4 text-right">
+                              {u.role === "admin" ? (
+                                <span className="text-[11px] text-[#a1a1aa] italic">Super Admin</span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleBlock(u.id, isBlocked)}
+                                  className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                                    isBlocked
+                                      ? "bg-[#dcfce7] text-[#15803d] hover:bg-[#bbf7d0] border border-[#86efac]"
+                                      : "bg-[#fee2e2] text-[#dc2626] hover:bg-[#fecaca] border border-[#fca5a5]"
+                                  }`}
+                                >
+                                  {isBlocked ? "Unblock Access" : "Block Student"}
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -672,37 +583,6 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  {/* Chunking Sliders */}
-                  <div className="p-3.5 rounded-2xl bg-white border border-[#e4e4e7] space-y-3">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-[#18181b]">Chunk Size:</span>
-                      <span className="font-mono text-[#71717a]">{chunkSize} characters</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="400"
-                      max="2000"
-                      step="100"
-                      value={chunkSize}
-                      onChange={(e) => setChunkSize(Number(e.target.value))}
-                      className="w-full accent-[#18181b]"
-                    />
-
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-[#18181b]">Overlap:</span>
-                      <span className="font-mono text-[#71717a]">{chunkOverlap} characters</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="50"
-                      max="500"
-                      step="50"
-                      value={chunkOverlap}
-                      onChange={(e) => setChunkOverlap(Number(e.target.value))}
-                      className="w-full accent-[#18181b]"
-                    />
-                  </div>
-
                   {/* Progress Indicator */}
                   {isUploading && (
                     <div className="w-full space-y-1.5">
@@ -741,36 +621,46 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="space-y-3 overflow-y-auto max-h-[500px] pr-2">
-                  {documents.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className="p-4 rounded-2xl bg-[#fafafa] border border-[#e4e4e7] flex items-center justify-between hover:border-[#18181b] transition-all"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-white border border-[#e4e4e7] flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <Building2 className="w-4 h-4 text-[#18181b]" />
-                        </div>
-                        <div>
-                          <div className="text-xs font-bold text-[#18181b]">{doc.title}</div>
-                          <div className="flex items-center gap-2 mt-1 text-[11px] text-[#71717a]">
-                            <span className="font-medium text-[#18181b]">{doc.subject}</span>
-                            <span>•</span>
-                            <span>{doc.board}</span>
-                            <span>•</span>
-                            <span className="font-mono text-[10px] bg-white px-2 py-0.5 rounded border border-[#e4e4e7]">
-                              {doc.chunk_count} Chunks
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <span className="text-[10px] font-mono font-bold bg-[#dcfce7] text-[#15803d] px-2 py-1 rounded-md">
-                          INDEXED
-                        </span>
+                  {documents.length === 0 ? (
+                    <div className="p-8 rounded-2xl bg-[#fafafa] border border-[#e4e4e7] text-center text-[#71717a]">
+                      <FileText className="w-8 h-8 mx-auto mb-2 text-[#d4d4d8]" />
+                      <div className="font-semibold text-xs text-[#18181b]">No admission documents indexed yet</div>
+                      <div className="text-[11px] text-[#a1a1aa] mt-0.5">
+                        Upload a university prospectus or merit PDF on the left to chunk and vectorize into Qdrant.
                       </div>
                     </div>
-                  ))}
+                  ) : (
+                    documents.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className="p-4 rounded-2xl bg-[#fafafa] border border-[#e4e4e7] flex items-center justify-between hover:border-[#18181b] transition-all"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 rounded-xl bg-white border border-[#e4e4e7] flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <Building2 className="w-4 h-4 text-[#18181b]" />
+                          </div>
+                          <div>
+                            <div className="text-xs font-bold text-[#18181b]">{doc.title}</div>
+                            <div className="flex items-center gap-2 mt-1 text-[11px] text-[#71717a]">
+                              <span className="font-medium text-[#18181b]">{doc.subject}</span>
+                              <span>•</span>
+                              <span>{doc.board}</span>
+                              <span>•</span>
+                              <span className="font-mono text-[10px] bg-white px-2 py-0.5 rounded border border-[#e4e4e7]">
+                                {doc.chunk_count} Chunks
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-[10px] font-mono font-bold bg-[#dcfce7] text-[#15803d] px-2 py-1 rounded-md">
+                            INDEXED
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>

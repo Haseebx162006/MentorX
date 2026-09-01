@@ -82,8 +82,8 @@ async def upload_and_ingest_document(
     title: str = Form(...),
     subject: str = Form("Physics"),
     board: str = Form("Punjab Board"),
-    chunk_size: Optional[int] = Form(1000),
-    chunk_overlap: Optional[int] = Form(300),
+    chunk_size: Optional[int] = Form(None),
+    chunk_overlap: Optional[int] = Form(None),
     db: Session = Depends(get_db),
 ):
     """

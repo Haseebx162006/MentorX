@@ -10,6 +10,8 @@ from app.repositories.document_repository import DocumentRepository
 from app.Chunker.chunker import convert_to_chunks
 from app.vector.database import store_db
 
+from app.config.settings import settings
+
 TEMP_DIR = Path(__file__).resolve().parent.parent.parent / "temp"
 TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -30,9 +32,11 @@ class DocumentService:
         title: str,
         subject: str = "Physics",
         board: str = "Punjab Board",
-        chunk_size: Optional[int] = 1000,
-        chunk_overlap: Optional[int] = 300,
+        chunk_size: Optional[int] = None,
+        chunk_overlap: Optional[int] = None,
     ) -> Document:
+        effective_chunk_size = chunk_size or settings.CHUNK_SIZE
+        effective_chunk_overlap = chunk_overlap or settings.CHUNK_OVERLAP
         temp_file_path = TEMP_DIR / file.filename
         with open(temp_file_path, "wb") as f:
             content = await file.read()
@@ -50,7 +54,11 @@ class DocumentService:
 
             all_chunks = []
             for doc in documents:
-                chunks = convert_to_chunks(doc, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+                chunks = convert_to_chunks(
+                    doc,
+                    chunk_size=effective_chunk_size,
+                    chunk_overlap=effective_chunk_overlap,
+                )
                 all_chunks.extend(chunks)
 
             chunk_count = len(all_chunks)

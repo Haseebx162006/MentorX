@@ -3,10 +3,12 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { useUIStore } from "@/store/useUIStore";
+import { useAuthStore } from "@/store/useAuthStore";
 import IsometricIllustration from "./IsometricIllustration";
 
 export default function HeroSection() {
   const { openAuthModal, setCurrentView } = useUIStore();
+  const { isAuthenticated } = useAuthStore();
 
   return (
     <section className="relative pt-6 pb-16 overflow-hidden">
@@ -47,19 +49,35 @@ export default function HeroSection() {
             <div className="mt-8 flex items-center gap-3.5">
               <button
                 type="button"
-                onClick={() => setCurrentView("workspace")}
+                onClick={() => {
+                  if (!isAuthenticated) {
+                    openAuthModal("signin");
+                  } else {
+                    setCurrentView("workspace");
+                  }
+                }}
                 className="px-7 py-3 rounded-full bg-[#18181b] text-white text-xs font-semibold hover:bg-[#27272a] active:scale-95 transition-all shadow-xs cursor-pointer"
               >
                 Find Compatible Universities
               </button>
 
-              <button
-                type="button"
-                onClick={() => openAuthModal("signin")}
-                className="px-7 py-3 rounded-full bg-white border border-[#e4e4e7] text-[#27272a] text-xs font-semibold hover:bg-[#fafafa] hover:border-[#d4d4d8] active:scale-95 transition-all shadow-2xs cursor-pointer"
-              >
-                Sign in with Google
-              </button>
+              {!isAuthenticated ? (
+                <button
+                  type="button"
+                  onClick={() => openAuthModal("signin")}
+                  className="px-7 py-3 rounded-full bg-white border border-[#e4e4e7] text-[#27272a] text-xs font-semibold hover:bg-[#fafafa] hover:border-[#d4d4d8] active:scale-95 transition-all shadow-2xs cursor-pointer"
+                >
+                  Sign in with Google
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setCurrentView("workspace")}
+                  className="px-7 py-3 rounded-full bg-white border border-[#e4e4e7] text-[#27272a] text-xs font-semibold hover:bg-[#fafafa] hover:border-[#d4d4d8] active:scale-95 transition-all shadow-2xs cursor-pointer"
+                >
+                  Open Chatbot
+                </button>
+              )}
             </div>
 
             {/* Key Trust Signals */}

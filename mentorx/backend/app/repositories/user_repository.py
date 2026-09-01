@@ -7,7 +7,6 @@ from app.models.user import User
 class UserRepository:
     """
     SQLAlchemy ORM Repository for User operations.
-    Pure ORM methods without raw SQL strings.
     """
 
     @staticmethod
@@ -41,6 +40,7 @@ class UserRepository:
 
     @staticmethod
     def update_last_active(db: Session, user: User) -> User:
+        user.last_active = func.now()
         db.commit()
         db.refresh(user)
         return user
