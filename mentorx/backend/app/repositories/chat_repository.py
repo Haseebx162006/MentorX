@@ -30,9 +30,32 @@ class ChatRepository:
         title: str = "New Conversation",
         user_id: Optional[str] = None,
     ) -> ChatSession:
+        valid_user_id = None
+        if user_id:
+            from app.models.user import User
+            try:
+                user = db.scalars(select(User).where(User.id == user_id)).first()
+                if user:
+                    valid_user_id = user_id
+                else:
+                    # Auto-provision user record for guest / fallback client user IDs
+                    guest_user = User(
+                        id=user_id,
+                        email=f"{user_id}@mentorx.edu",
+                        name="Student User",
+                        role="student",
+                    )
+                    db.add(guest_user)
+                    db.commit()
+                    valid_user_id = user_id
+            except Exception as e:
+                db.rollback()
+                print(f"Notice: User check/provisioning handled ({e}). Creating guest session.")
+                valid_user_id = None
+
         session = ChatSession(
             id=session_id,
-            user_id=user_id,
+            user_id=valid_user_id,
             title=title,
         )
         db.add(session)
