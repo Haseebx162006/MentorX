@@ -1,11 +1,55 @@
 "use client";
 
 import React, { useState } from "react";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, Calculator } from "lucide-react";
 
 interface MarkdownMessageProps {
   content: string;
   isStreaming?: boolean;
+}
+
+function cleanLatexFormula(raw: string): string {
+  if (!raw) return "";
+  let s = raw.trim();
+
+  // Remove wrapping brackets or delimiters
+  s = s.replace(/^\\\[\s*/, "").replace(/\s*\\\]$/, "");
+  s = s.replace(/^\$\$\s*/, "").replace(/\s*\$\$$/, "");
+  s = s.replace(/^\\\(\s*/, "").replace(/\s*\\\)$/, "");
+  s = s.replace(/^\$\s*/, "").replace(/\s*\$$/, "");
+
+  // Clean LaTeX macro commands
+  s = s.replace(/\\text\{([^}]+)\}/g, "$1");
+  s = s.replace(/\\mathbf\{([^}]+)\}/g, "$1");
+  s = s.replace(/\\textbf\{([^}]+)\}/g, "$1");
+  s = s.replace(/\\mathit\{([^}]+)\}/g, "$1");
+  s = s.replace(/\\mathrm\{([^}]+)\}/g, "$1");
+  s = s.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, "($1 / $2)");
+  
+  // Clean mathematical operators & symbols
+  s = s.replace(/\\times/g, "×");
+  s = s.replace(/\\cdot/g, "·");
+  s = s.replace(/\\div/g, "÷");
+  s = s.replace(/\\pm/g, "±");
+  s = s.replace(/\\approx/g, "≈");
+  s = s.replace(/\\le(q)?/g, "≤");
+  s = s.replace(/\\ge(q)?/g, "≥");
+  s = s.replace(/\\ne(q)?/g, "≠");
+  s = s.replace(/\\sqrt\{([^}]+)\}/g, "√($1)");
+  s = s.replace(/\\sum/g, "∑");
+  s = s.replace(/\\%/g, "%");
+  s = s.replace(/\\quad/g, "  ");
+  s = s.replace(/\\qquad/g, "    ");
+  s = s.replace(/\\,/g, " ");
+  s = s.replace(/\\;/g, " ");
+  s = s.replace(/\\left\(/g, "(");
+  s = s.replace(/\\right\)/g, ")");
+  s = s.replace(/\\left\[/g, "[");
+  s = s.replace(/\\right\]/g, "]");
+  s = s.replace(/\\left\{/g, "{");
+  s = s.replace(/\\right\}/g, "}");
+
+  return s.trim();
 }
 
 export default function MarkdownMessage({ content, isStreaming = false }: MarkdownMessageProps) {
@@ -18,8 +62,13 @@ export default function MarkdownMessage({ content, isStreaming = false }: Markdo
   };
 
   const renderFormattedText = (text: string) => {
-    // Process bold, inline code
-    const parts = text.split(/(\*\*.*?\*\*|`.*?`)/g);
+    // Clean inline LaTeX equations like \( ... \) or $ ... $
+    const cleanedText = text
+      .replace(/\\\((.*?)\\\)/g, (_, eq) => ` ${cleanLatexFormula(eq)} `)
+      .replace(/(?<!\$)\$(?!\$)(.*?)\$(?!\$)/g, (_, eq) => ` ${cleanLatexFormula(eq)} `);
+
+    // Process bold, inline code, links
+    const parts = cleanedText.split(/(\*\*.*?\*\*|`.*?`)/g);
     return parts.map((part, i) => {
       if (part.startsWith("**") && part.endsWith("**") && part.length >= 4) {
         return (
@@ -50,6 +99,8 @@ export default function MarkdownMessage({ content, isStreaming = false }: Markdo
     let codeBuffer: string[] = [];
     let inTable = false;
     let tableBuffer: string[] = [];
+    let inMathBlock = false;
+    let mathBuffer: string[] = [];
     let blockIndex = 0;
 
     const flushTable = () => {
@@ -135,15 +186,72 @@ export default function MarkdownMessage({ content, isStreaming = false }: Markdo
       inCodeBlock = false;
     };
 
+    const flushMathBlock = () => {
+      if (mathBuffer.length === 0) return;
+      const rawFormula = mathBuffer.join(" ").trim();
+      const cleaned = cleanLatexFormula(rawFormula);
+      if (cleaned) {
+        blocks.push(
+          <div
+            key={`math-${blockIndex++}`}
+            className="my-3 p-3.5 rounded-xl bg-[#f8fafc] border border-[#e2e8f0] text-center font-mono font-semibold text-[13px] sm:text-sm text-[#0f172a] shadow-2xs flex items-center justify-center gap-2"
+          >
+            <Calculator className="w-4 h-4 text-[#64748b] flex-shrink-0" />
+            <span className="break-words select-all">{cleaned}</span>
+          </div>
+        );
+      }
+      mathBuffer = [];
+      inMathBlock = false;
+    };
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
+      const trimmed = line.trim();
+
+      // Math Block Detection (\[ ... \] or $$ ... $$)
+      if (trimmed === "\\[" || trimmed === "$$") {
+        if (!inMathBlock) {
+          if (inTable) flushTable();
+          inMathBlock = true;
+          mathBuffer = [];
+        } else {
+          flushMathBlock();
+        }
+        continue;
+      }
+      if (trimmed === "\\]" || (inMathBlock && trimmed === "$$")) {
+        flushMathBlock();
+        continue;
+      }
+      if (inMathBlock) {
+        mathBuffer.push(line);
+        continue;
+      }
+
+      // Single line LaTeX block like \[ \text{FSC} = 90% \]
+      if ((trimmed.startsWith("\\[") && trimmed.endsWith("\\]")) || (trimmed.startsWith("$$") && trimmed.endsWith("$$") && trimmed.length > 4)) {
+        const cleaned = cleanLatexFormula(trimmed);
+        if (cleaned) {
+          blocks.push(
+            <div
+              key={`math-${blockIndex++}`}
+              className="my-3 p-3.5 rounded-xl bg-[#f8fafc] border border-[#e2e8f0] text-center font-mono font-semibold text-[13px] sm:text-sm text-[#0f172a] shadow-2xs flex items-center justify-center gap-2"
+            >
+              <Calculator className="w-4 h-4 text-[#64748b] flex-shrink-0" />
+              <span className="break-words select-all">{cleaned}</span>
+            </div>
+          );
+        }
+        continue;
+      }
 
       // Code Block Detection
-      if (line.trim().startsWith("```")) {
+      if (trimmed.startsWith("```")) {
         if (!inCodeBlock) {
           if (inTable) flushTable();
           inCodeBlock = true;
-          codeLanguage = line.trim().slice(3).trim();
+          codeLanguage = trimmed.slice(3).trim();
           codeBuffer = [];
         } else {
           flushCodeBlock();
@@ -157,7 +265,7 @@ export default function MarkdownMessage({ content, isStreaming = false }: Markdo
       }
 
       // Table Detection
-      if (line.trim().startsWith("|") && line.trim().endsWith("|")) {
+      if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
         inTable = true;
         tableBuffer.push(line);
         continue;
@@ -190,16 +298,16 @@ export default function MarkdownMessage({ content, isStreaming = false }: Markdo
             {renderFormattedText(line.slice(2))}
           </blockquote>
         );
-      } else if (line.trim().startsWith("• ") || line.trim().startsWith("- ") || line.trim().startsWith("* ")) {
-        const bulletText = line.trim().replace(/^[•\-\*]\s*/, "");
+      } else if (trimmed.startsWith("• ") || trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+        const bulletText = trimmed.replace(/^[•\-\*]\s*/, "");
         blocks.push(
           <div key={blockIndex++} className="flex items-start gap-2.5 my-1 ml-1 text-sm text-[#27272a] leading-relaxed">
             <span className="w-1.5 h-1.5 rounded-full bg-[#18181b] mt-2 flex-shrink-0" />
             <div className="flex-1">{renderFormattedText(bulletText)}</div>
           </div>
         );
-      } else if (/^\d+\.\s/.test(line.trim())) {
-        const match = line.trim().match(/^(\d+)\.\s*(.*)/);
+      } else if (/^\d+\.\s/.test(trimmed)) {
+        const match = trimmed.match(/^(\d+)\.\s*(.*)/);
         const num = match ? match[1] : "1";
         const rest = match ? match[2] : line;
         blocks.push(
@@ -210,7 +318,7 @@ export default function MarkdownMessage({ content, isStreaming = false }: Markdo
             <div className="flex-1">{renderFormattedText(rest)}</div>
           </div>
         );
-      } else if (line.trim() === "") {
+      } else if (trimmed === "") {
         blocks.push(<div key={blockIndex++} className="h-1.5" />);
       } else {
         blocks.push(
@@ -221,7 +329,10 @@ export default function MarkdownMessage({ content, isStreaming = false }: Markdo
       }
     }
 
-    // Flush any unclosed blocks (e.g. while actively streaming)
+    // Flush any unclosed blocks
+    if (inMathBlock) {
+      flushMathBlock();
+    }
     if (inCodeBlock) {
       flushCodeBlock();
     }

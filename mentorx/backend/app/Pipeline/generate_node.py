@@ -18,6 +18,7 @@ def build_admission_prompt() -> ChatPromptTemplate:
             "  * Answer directly, concisely, and accurately based on the verified Context Information and Conversation History.\n"
             "  * If the context contains specific details (admission eligibility, test criteria, closing merit percentages, deadlines, fees), use those exact numbers and facts.\n"
             "  * Format your response like ChatGPT: Use crisp markdown with clean section headers (###), bold key terms, neat bullet points, and tables when comparing universities or criteria.\n"
+            "  * For mathematical formulas (aggregate calculations, weightages, marks breakdowns), format them cleanly in readable markdown (e.g., `Aggregate = (Matric % × 0.10) + (FSc % × 0.40) + (NTS % × 0.50)` or **FSc Contribution** = 90% × 0.40 = **36.0%**). Do NOT output raw LaTeX brackets like `[` or `]`.\n"
             "  * Do NOT include robotic boilerplate or repetitive introductory disclaimers. Provide direct, helpful, and well-structured insights.\n\n"
             "Previous Conversation History:\n{history}\n\n"
             "Context Information:\n{context}"

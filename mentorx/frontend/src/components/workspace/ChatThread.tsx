@@ -4,70 +4,53 @@ import React, { useRef, useEffect, useState, useCallback } from "react";
 import {
   Copy,
   Check,
-  BookOpen,
   Sparkles,
   ArrowDown,
-  ExternalLink,
-  Globe,
 } from "lucide-react";
 import { useChatStore, ChatMessage } from "@/store/useChatStore";
 import MarkdownMessage from "./MarkdownMessage";
 
-const cleanSourceSnippet = (raw: string) => {
-  if (!raw) return "Verified academic information from university documents.";
-  let clean = raw
-    .replace(/^"?TITLE:[^\n]*\n?/i, "")
-    .replace(/URL:[^\n]*\n?/i, "")
-    .replace(/CONTENT:\s*/i, "")
-    .replace(/^"|"$/g, "")
-    .trim();
-  clean = clean.replace(/\s+/g, " ");
-  return clean || "Official admission guidelines & criteria.";
-};
-
-const extractDomain = (url?: string) => {
-  if (!url) return null;
-  try {
-    const parsed = new URL(url);
-    return parsed.hostname.replace(/^www\./, "");
-  } catch {
-    return url.replace(/^https?:\/\//, "").split("/")[0];
-  }
-};
-
 export default function ChatThread() {
-  const { activeSessionId, sessions } = useChatStore();
+  const { activeSessionId, sessions, isStreaming } = useChatStore();
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const messages = activeSession?.messages || [];
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
-  const isAutoScrollActive = useRef(true);
+  const userScrolledUp = useRef(false);
 
   // Directly scroll the container down to follow incoming tokens
-  const scrollToBottom = useCallback((behavior: ScrollBehavior = "auto") => {
-    const el = scrollContainerRef.current;
-    if (!el) return;
-    if (behavior === "smooth") {
-      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-    } else {
-      el.scrollTop = el.scrollHeight;
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior, block: "end" });
+    } else if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
   }, []);
 
-  // Follow stream output smoothly
+  // Auto-scroll on new messages and streaming tokens (unless user explicitly scrolled up)
   useEffect(() => {
-    if (isAutoScrollActive.current && scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    if (!userScrolledUp.current) {
+      scrollToBottom(isStreaming ? "auto" : "smooth");
     }
-  }, [messages]);
+  }, [messages, isStreaming, scrollToBottom]);
+
+  // When a new user question is submitted, re-engage auto-scroll
+  useEffect(() => {
+    if (messages.length > 0 && messages[messages.length - 1].role === "user") {
+      userScrolledUp.current = false;
+      scrollToBottom("smooth");
+    }
+  }, [messages.length, scrollToBottom]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
     const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    const nearBottom = distanceToBottom < 120;
-    isAutoScrollActive.current = nearBottom;
-    setShowScrollBottom(!nearBottom);
+    const isNearBottom = distanceToBottom < 120;
+    
+    userScrolledUp.current = !isNearBottom;
+    setShowScrollBottom(!isNearBottom);
   };
 
   const handleCopy = (id: string, text: string) => {
@@ -80,7 +63,7 @@ export default function ChatThread() {
     <div
       ref={scrollContainerRef}
       onScroll={handleScroll}
-      className="flex-1 overflow-y-auto min-h-0 px-4 sm:px-8 py-4 pb-44 custom-scrollbar select-text"
+      className="flex-1 overflow-y-auto min-h-0 px-4 sm:px-8 py-4 pb-48 custom-scrollbar select-text scroll-smooth"
     >
       <div className="w-full max-w-3xl mx-auto space-y-6">
         {messages.map((msg: ChatMessage) => (
@@ -123,70 +106,12 @@ export default function ChatThread() {
                   {/* Formatted Markdown Body / Initial Retrieval Indicator */}
                   {msg.isStreaming && !msg.content ? (
                     <div className="flex items-center gap-2 py-2 text-xs text-[#71717a]">
-                      <span className="w-2 h-2 rounded-full bg-[#18181b] opacity-80" />
-                      <span>Searching Qdrant vector database and formulating guidance...</span>
+                      <span className="w-2 h-2 rounded-full bg-[#18181b] animate-ping" />
+                      <span>Formulating admission guidance...</span>
                     </div>
                   ) : (
                     <div className="text-[#27272a] leading-relaxed">
                       <MarkdownMessage content={msg.content} isStreaming={msg.isStreaming} />
-                    </div>
-                  )}
-
-                  {/* Grounded Knowledge Sources (Cleaned & Formatted) */}
-                  {msg.sources && msg.sources.length > 0 && (
-                    <div className="mt-4 pt-3 border-t border-[#f4f4f5]">
-                      <div className="text-[11px] font-semibold text-[#71717a] uppercase tracking-wider mb-2 flex items-center gap-1.5 font-mono select-none">
-                        <BookOpen className="w-3.5 h-3.5 text-[#18181b]" /> Verified Knowledge Sources:
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {msg.sources.map((src, i) => {
-                          const domain = extractDomain(src.url);
-                          const cleanSnippet = cleanSourceSnippet(src.snippet);
-
-                          return (
-                            <div
-                              key={i}
-                              className="p-3 rounded-xl bg-[#fafafa] border border-[#e4e4e7] hover:border-[#a1a1aa] transition-colors text-xs flex flex-col justify-between"
-                            >
-                              <div>
-                                <div className="font-semibold text-[#18181b] truncate flex items-center justify-between gap-2">
-                                  <span className="truncate" title={src.title}>{src.title}</span>
-                                  <span className="text-[9px] font-mono uppercase bg-white px-1.5 py-0.5 rounded border border-[#e4e4e7] flex-shrink-0">
-                                    {src.sourceType === "web" ? "WEB" : "PROSPECTUS"}
-                                  </span>
-                                </div>
-                                <p className="text-[11px] text-[#71717a] line-clamp-2 mt-1.5 italic leading-snug">
-                                  "{cleanSnippet}"
-                                </p>
-                              </div>
-
-                              <div className="mt-2.5 pt-1.5 border-t border-[#f4f4f5] flex items-center justify-between">
-                                {src.url ? (
-                                  <a
-                                    href={src.url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-[10px] text-blue-600 font-semibold hover:underline flex items-center gap-1 truncate"
-                                  >
-                                    <Globe className="w-3 h-3 flex-shrink-0" />
-                                    <span className="truncate">{domain || "Visit Website"}</span>
-                                    <ExternalLink className="w-2.5 h-2.5 flex-shrink-0" />
-                                  </a>
-                                ) : (
-                                  <span className="text-[10px] text-[#71717a] font-medium font-mono">
-                                    Local Vector Knowledge
-                                  </span>
-                                )}
-                                {src.relevanceScore && (
-                                  <span className="text-[10px] text-[#15803d] font-semibold flex-shrink-0">
-                                    {Math.round(src.relevanceScore * 100)}% match
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
                     </div>
                   )}
 
@@ -218,6 +143,9 @@ export default function ChatThread() {
             )}
           </div>
         ))}
+
+        {/* Bottom Scroll Anchor */}
+        <div ref={messagesEndRef} className="h-4 w-full" />
       </div>
 
       {/* Floating Scroll to Bottom Button */}
@@ -225,7 +153,7 @@ export default function ChatThread() {
         <button
           type="button"
           onClick={() => {
-            isAutoScrollActive.current = true;
+            userScrolledUp.current = false;
             scrollToBottom("smooth");
           }}
           className="fixed bottom-28 right-8 p-2.5 rounded-full bg-white text-[#18181b] border border-[#e4e4e7] shadow-lg hover:bg-[#f4f4f5] transition-all cursor-pointer z-30 flex items-center justify-center"
