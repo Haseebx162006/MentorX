@@ -68,8 +68,7 @@ export default function AdminDashboard() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
 
   // Fetch Users & Documents from FastAPI on Mount
   const fetchBackendData = async () => {
@@ -111,7 +110,7 @@ export default function AdminDashboard() {
     );
 
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/admin/users/${userId}/status`, {
+      const res = await fetch(`${API_URL}/api/admin/users/${userId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ is_blocked: newStatus }),
@@ -162,7 +161,7 @@ export default function AdminDashboard() {
         setUploadProgress((p) => (p < 90 ? p + 15 : p));
       }, 300);
 
-      const res = await fetch("http://127.0.0.1:8000/api/admin/documents/upload", {
+      const res = await fetch(`${API_URL}/api/admin/documents/upload`, {
         method: "POST",
         body: formData,
       });
