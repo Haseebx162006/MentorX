@@ -310,13 +310,17 @@ async def stream_chat_query(
         user_id=payload.user_id,
     )
     session_id = session.id
-    history = ChatService.get_recent_history_context(db, session_id, limit=6)
+    db_history = ChatService.get_recent_history_context(db, session_id, limit=10)
+    history = payload.history if (payload.history is not None and len(payload.history) > 0) else db_history
 
     # Format history turns for LLM prompt
     history_formatted = []
     for turn in history:
-        role_label = "Student" if turn.get("role") == "user" else "MentorX"
-        history_formatted.append(f"{role_label}: {turn.get('content', '').strip()}")
+        role = turn.get("role") if isinstance(turn, dict) else getattr(turn, "role", "user")
+        content = turn.get("content") if isinstance(turn, dict) else getattr(turn, "content", "")
+        role_label = "Student" if role == "user" else "MentorX"
+        if content and str(content).strip():
+            history_formatted.append(f"{role_label}: {str(content).strip()}")
     history_str = "\n".join(history_formatted) if history_formatted else "No previous messages in this conversation."
 
     async def sse_event_generator():
@@ -337,15 +341,15 @@ async def stream_chat_query(
                 refine_state = refine({"good_docs": target_docs, "docs": retrieved_docs})
                 final_context = refine_state.get("refined_context", "")
             elif verdict == "bad" or payload.web_search:
-                rewrite_state = rewrite_query_node({"question": payload.question})
+                rewrite_state = rewrite_query_node({"question": payload.question, "history_str": history_str})
                 web_state = web_search_node({"question": payload.question, "web_query": rewrite_state.get("web_query")})
                 web_docs = web_state.get("web_docs", [])
                 target_docs = web_docs
                 final_context = "\n\n".join([d.page_content for d in web_docs]) if web_docs else "No web docs found."
-                is_web = True
+                is_web = bool(web_docs)
             else:
                 # 'mixed' verdict: combine local + web
-                rewrite_state = rewrite_query_node({"question": payload.question})
+                rewrite_state = rewrite_query_node({"question": payload.question, "history_str": history_str})
                 web_state = web_search_node({"question": payload.question, "web_query": rewrite_state.get("web_query")})
                 combine_state = combine_docs_node({"good_docs": target_docs, "web_docs": web_state.get("web_docs", [])})
                 refine_state = refine({"good_docs": combine_state.get("docs", [])})

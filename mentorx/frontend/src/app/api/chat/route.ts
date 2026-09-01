@@ -12,7 +12,13 @@ const BACKEND_URL = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000")
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { question, deepResearch, webSearch, model, userId, sessionId } = body;
+    const question = body.question;
+    const user_id = body.user_id || body.userId || null;
+    const session_id = body.session_id || body.sessionId || null;
+    const deep_research = body.deep_research ?? body.deepResearch ?? false;
+    const web_search = body.web_search ?? body.webSearch ?? false;
+    const model = body.model || "MentorX AI";
+    const history = body.history || [];
 
     if (!question) {
       return NextResponse.json({ error: "Question is required" }, { status: 400 });
@@ -25,11 +31,12 @@ export async function POST(req: Request) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           question,
-          user_id: userId || null,
-          session_id: sessionId || null,
-          deep_research: deepResearch,
-          web_search: webSearch,
-          model: model || "MentorX AI",
+          user_id,
+          session_id,
+          deep_research,
+          web_search,
+          model,
+          history,
         }),
         signal: AbortSignal.timeout(30000),
       });
@@ -73,12 +80,12 @@ export async function POST(req: Request) {
     }
 
     let simulatedAnswer = "";
-    if (webSearch) {
+    if (web_search) {
       simulatedAnswer += `⭐ **This answer is not generated from the chunks because information was not available in RAG, it is generated from the web search.**\n\n`;
     }
     simulatedAnswer += `### 🎓 MentorX Admission Guidance\n\n`;
 
-    if (deepResearch) {
+    if (deep_research) {
       simulatedAnswer += `> 🔬 **Deep Multi-Year Merit Analysis Active**: Analyzed multi-year closing merit lists, quota seats, and university test weightage models.\n\n`;
     }
 
@@ -105,7 +112,7 @@ export async function POST(req: Request) {
       },
     ];
 
-    if (webSearch) {
+    if (web_search) {
       sources.push({
         title: "Latest University Admission Schedules & Merit Cutoffs Repository",
         sourceType: "web",
@@ -116,7 +123,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       answer: simulatedAnswer,
-      session_id: sessionId || `session_${Date.now()}`,
+      session_id: session_id || `session_${Date.now()}`,
       sources,
       verdict: "good",
     });

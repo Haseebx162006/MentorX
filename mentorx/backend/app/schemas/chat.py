@@ -16,6 +16,7 @@ class ChatRequest(BaseModel):
     deep_research: Optional[bool] = False
     web_search: Optional[bool] = False
     model: Optional[str] = "MentorX AI"
+    history: Optional[List[Any]] = None
 
 
 class ChatResponse(BaseModel):

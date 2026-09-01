@@ -349,6 +349,15 @@ export const useChatStore = create<ChatState>()(
         let accumulatedContent = "";
         let accumulatedSources: SourceDocument[] = [];
         let accumulatedVerdict: "good" | "mixed" | "bad" = "good";
+        const existingSession = get().sessions.find((s) => s.id === targetSessionId);
+        const rawHistory = existingSession?.messages || [];
+        const historyPayload = rawHistory
+          .filter((m) => m.content && m.content.trim().length > 0)
+          .slice(-10)
+          .map((m) => ({
+            role: m.role,
+            content: m.content,
+          }));
 
         try {
           const isDeep = get().deepResearchEnabled;
@@ -364,6 +373,7 @@ export const useChatStore = create<ChatState>()(
               deep_research: isDeep,
               web_search: isWeb,
               model: get().selectedModel,
+              history: historyPayload,
             }),
             signal: controller.signal,
           });

@@ -7,7 +7,8 @@ from langsmith import traceable
 @traceable(name="mentorx_rewrite_query", run_type="chain")
 def rewrite_query_node(state: State):
     q = state.get("question") if isinstance(state, dict) else state.question
-    output = rewrite_chain.invoke({"question": q})
+    history = state.get("history_str") if isinstance(state, dict) else getattr(state, "history_str", "No previous conversation.")
+    output = rewrite_chain.invoke({"question": q, "history": history})
     return {"web_query": getattr(output, "query", q)}
 
 
@@ -16,6 +17,10 @@ def web_search_node(state: State):
     q = (state.get("web_query") if isinstance(state, dict) else getattr(state, "web_query", None)) or (
         state.get("question") if isinstance(state, dict) else state.question
     )
+
+    # If question is conversational, do not poll random web search
+    if "CONVERSATIONAL_QUERY" in str(q):
+        return {"web_docs": []}
 
     web_docs = []
 

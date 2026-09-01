@@ -21,11 +21,14 @@ rewrite_prompt = ChatPromptTemplate.from_messages(
     [
         (
             "system",
-            "You are a search query optimizer. Given a user question, rewrite it into a clear, concise keyword search query (3 to 8 words) for Google/Tavily search.\n"
-            "Do NOT answer the question.\n"
-            "Output ONLY the search query text, without quotes or additional text.",
+            "You are a search query optimizer for an academic admissions assistant.\n"
+            "Given recent conversation history and the student's latest question, rewrite the question into a specific, standalone search query (3 to 8 words) for admission information.\n\n"
+            "Guidelines:\n"
+            "- Resolve any pronouns or references (e.g. 'its fees', 'their closing merit') to the specific university or program mentioned in the history.\n"
+            "- If the question is purely conversational, a greeting, or asking what the student previously said in chat (e.g. 'hello', 'what did I ask earlier?', 'about which university did I ask', 'how much marks do I have'), output: 'CONVERSATIONAL_QUERY'.\n"
+            "- Do NOT answer the question. Output ONLY the search query string.",
         ),
-        ("human", "Question: {question}"),
+        ("human", "Recent Conversation:\n{history}\n\nLatest Question: {question}"),
     ]
 )
 
@@ -33,9 +36,10 @@ rewrite_prompt = ChatPromptTemplate.from_messages(
 class ResilientRewriteChain:
     def invoke(self, inputs: dict) -> WebQuery:
         q = inputs.get("question", "")
+        history = inputs.get("history", "No previous conversation.")
         try:
             chain = rewrite_prompt | llm | StrOutputParser()
-            raw_output = chain.invoke({"question": q})
+            raw_output = chain.invoke({"question": q, "history": history})
             # Clean up query
             clean = raw_output.strip().strip('"').strip("'")
             # If output looks like JSON, extract query

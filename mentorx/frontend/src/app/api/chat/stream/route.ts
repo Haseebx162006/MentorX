@@ -5,7 +5,13 @@ const BACKEND_URL = (process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_URL 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { question, deepResearch, webSearch, model, userId, sessionId } = body;
+    const question = body.question;
+    const user_id = body.user_id || body.userId || null;
+    const session_id = body.session_id || body.sessionId || null;
+    const deep_research = body.deep_research ?? body.deepResearch ?? false;
+    const web_search = body.web_search ?? body.webSearch ?? false;
+    const model = body.model || "MentorX AI";
+    const history = body.history || [];
 
     if (!question) {
       return NextResponse.json({ error: "Question is required" }, { status: 400 });
@@ -17,11 +23,12 @@ export async function POST(req: Request) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           question,
-          user_id: userId || null,
-          session_id: sessionId || null,
-          deep_research: deepResearch,
-          web_search: webSearch,
-          model: model || "MentorX AI",
+          user_id,
+          session_id,
+          deep_research,
+          web_search,
+          model,
+          history,
         }),
       });
 
@@ -49,7 +56,7 @@ export async function POST(req: Request) {
       async start(controller) {
         const meta = {
           type: "meta",
-          session_id: sessionId || `session_${Date.now()}`,
+          session_id: session_id || `session_${Date.now()}`,
           verdict: "good",
           sources: [
             {
@@ -70,7 +77,7 @@ export async function POST(req: Request) {
           await new Promise((r) => setTimeout(r, 20));
         }
 
-        const done = { type: "done", session_id: sessionId };
+        const done = { type: "done", session_id: session_id };
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(done)}\n\n`));
         controller.close();
       },
