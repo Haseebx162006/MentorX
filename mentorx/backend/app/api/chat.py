@@ -1,5 +1,6 @@
 import uuid
 import json
+import re
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import StreamingResponse
@@ -319,70 +320,78 @@ async def stream_chat_query(
     history_str = "\n".join(history_formatted) if history_formatted else "No previous messages in this conversation."
 
     async def sse_event_generator():
-        # 1. Execute RAG Retrieval & Evaluation
-        retrieve_state = retrieve_node({"question": payload.question, "docs": []})
-        retrieved_docs = retrieve_state.get("docs", [])
+        try:
+            # 1. Execute RAG Retrieval & Evaluation
+            retrieve_state = retrieve_node({"question": payload.question, "docs": []})
+            retrieved_docs = retrieve_state.get("docs", [])
 
-        eval_state = eval_node({"question": payload.question, "docs": retrieved_docs})
-        verdict = eval_state.get("verdict", "good")
-        good_docs = eval_state.get("good_docs", [])
+            eval_state = eval_node({"question": payload.question, "docs": retrieved_docs})
+            verdict = eval_state.get("verdict", "good")
+            good_docs = eval_state.get("good_docs", [])
 
-        final_context = ""
-        is_web = False
-        target_docs = good_docs if good_docs else retrieved_docs
+            final_context = ""
+            is_web = False
+            target_docs = good_docs if good_docs else retrieved_docs
 
-        if verdict == "good":
-            refine_state = refine({"good_docs": target_docs, "docs": retrieved_docs})
-            final_context = refine_state.get("refined_context", "")
-        elif verdict == "bad" or payload.web_search:
-            rewrite_state = rewrite_query_node({"question": payload.question})
-            web_state = web_search_node({"question": payload.question, "web_query": rewrite_state.get("web_query")})
-            web_docs = web_state.get("web_docs", [])
-            target_docs = web_docs
-            final_context = "\n\n".join([d.page_content for d in web_docs]) if web_docs else "No web docs found."
-            is_web = True
-        else:
-            # 'mixed' verdict: combine local + web
-            rewrite_state = rewrite_query_node({"question": payload.question})
-            web_state = web_search_node({"question": payload.question, "web_query": rewrite_state.get("web_query")})
-            combine_state = combine_docs_node({"good_docs": target_docs, "web_docs": web_state.get("web_docs", [])})
-            refine_state = refine({"good_docs": combine_state.get("docs", [])})
-            final_context = refine_state.get("refined_context", "")
-            target_docs = combine_state.get("docs", [])
+            if verdict == "good":
+                refine_state = refine({"good_docs": target_docs, "docs": retrieved_docs})
+                final_context = refine_state.get("refined_context", "")
+            elif verdict == "bad" or payload.web_search:
+                rewrite_state = rewrite_query_node({"question": payload.question})
+                web_state = web_search_node({"question": payload.question, "web_query": rewrite_state.get("web_query")})
+                web_docs = web_state.get("web_docs", [])
+                target_docs = web_docs
+                final_context = "\n\n".join([d.page_content for d in web_docs]) if web_docs else "No web docs found."
+                is_web = True
+            else:
+                # 'mixed' verdict: combine local + web
+                rewrite_state = rewrite_query_node({"question": payload.question})
+                web_state = web_search_node({"question": payload.question, "web_query": rewrite_state.get("web_query")})
+                combine_state = combine_docs_node({"good_docs": target_docs, "web_docs": web_state.get("web_docs", [])})
+                refine_state = refine({"good_docs": combine_state.get("docs", [])})
+                final_context = refine_state.get("refined_context", "")
+                target_docs = combine_state.get("docs", [])
 
-        # Format sources
-        sources_list = []
-        for doc in target_docs[:4]:
-            meta = getattr(doc, "metadata", {}) if hasattr(doc, "metadata") else {}
-            content = getattr(doc, "page_content", str(doc)) if hasattr(doc, "page_content") else str(doc)
-            
-            raw_text = meta.get("content") or content
-            # Strip internal prompt prefixes if present
-            clean_snippet = re.sub(r"^(?:TITLE:[^\n]*\n)?(?:URL:[^\n]*\n)?(?:CONTENT:\s*)?", "", raw_text, flags=re.IGNORECASE).strip()
-            clean_snippet = re.sub(r"\s+", " ", clean_snippet)
+            # Format sources
+            sources_list = []
+            for doc in target_docs[:4]:
+                meta = getattr(doc, "metadata", {}) if hasattr(doc, "metadata") else {}
+                content = getattr(doc, "page_content", str(doc)) if hasattr(doc, "page_content") else str(doc)
+                
+                raw_text = meta.get("content") or content
+                # Strip internal prompt prefixes if present
+                clean_snippet = re.sub(r"^(?:TITLE:[^\n]*\n)?(?:URL:[^\n]*\n)?(?:CONTENT:\s*)?", "", raw_text, flags=re.IGNORECASE).strip()
+                clean_snippet = re.sub(r"\s+", " ", clean_snippet)
 
-            title = meta.get("title") or meta.get("source") or ("Live Web Source" if is_web else "University Admission Prospectus")
-            url = meta.get("url")
+                title = meta.get("title") or meta.get("source") or ("Live Web Source" if is_web else "University Admission Prospectus")
+                url = meta.get("url")
 
-            sources_list.append({
-                "title": str(title),
-                "url": str(url) if url else None,
-                "sourceType": "web" if is_web else "syllabus",
-                "snippet": (clean_snippet[:180] + "...") if len(clean_snippet) > 180 else clean_snippet,
-                "relevanceScore": 0.94 if not is_web else 0.90,
-            })
+                sources_list.append({
+                    "title": str(title),
+                    "url": str(url) if url else None,
+                    "sourceType": "web" if is_web else "syllabus",
+                    "snippet": (clean_snippet[:180] + "...") if len(clean_snippet) > 180 else clean_snippet,
+                    "relevanceScore": 0.94 if not is_web else 0.90,
+                })
 
-        if not sources_list:
-            sources_list.append({
-                "title": "Official University Admission Guidelines & Closing Merits",
-                "url": None,
-                "sourceType": "syllabus",
-                "snippet": "Verified aggregate formulas, previous year closing merit cutoffs, and HEC eligibility criteria.",
-                "relevanceScore": 0.96,
-            })
+            if not sources_list:
+                sources_list.append({
+                    "title": "Official University Admission Guidelines & Closing Merits",
+                    "url": None,
+                    "sourceType": "syllabus",
+                    "snippet": "Verified aggregate formulas, previous year closing merit cutoffs, and HEC eligibility criteria.",
+                    "relevanceScore": 0.96,
+                })
 
-        # Yield metadata event (sources and session ID)
-        yield f"data: {json.dumps({'type': 'meta', 'session_id': session_id, 'verdict': verdict, 'sources': sources_list})}\n\n"
+            # Yield metadata event (sources and session ID)
+            yield f"data: {json.dumps({'type': 'meta', 'session_id': session_id, 'verdict': verdict, 'sources': sources_list})}\n\n"
+        except Exception as e:
+            print(f"RAG Pipeline error: {e}")
+            err_msg = f"⚠️ **Configuration Notice**: {str(e)}"
+            yield f"data: {json.dumps({'type': 'meta', 'session_id': session_id, 'verdict': 'error', 'sources': []})}\n\n"
+            yield f"data: {json.dumps({'type': 'token', 'content': err_msg})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'session_id': session_id})}\n\n"
+            return
 
         # 2. Stream LLM tokens
         full_answer = ""

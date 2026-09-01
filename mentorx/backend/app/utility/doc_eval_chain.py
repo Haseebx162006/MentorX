@@ -32,7 +32,7 @@ doc_eval_prompt = ChatPromptTemplate.from_messages(
             "- 0.5: Chunk provides partial or general context on the topic.\n"
             "- 0.0: Chunk does NOT contain the requested information or is completely irrelevant.\n\n"
             "Format your response as valid JSON:\n"
-            "{\"score\": 1.0, \"reason\": \"brief explanation\"}",
+            "{{\"score\": 1.0, \"reason\": \"brief explanation\"}}",
         ),
         ("human", "Question: {question}\n\nChunk:\n{chunk}"),
     ]

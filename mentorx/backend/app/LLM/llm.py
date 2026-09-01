@@ -21,7 +21,12 @@ def create_llm(
         An instance of the specified language model.
     """
     model_name = model or settings.GROQ_MODEL
-    key = api_key or settings.GROQ_API_KEY
+    key = (api_key or settings.GROQ_API_KEY or "").strip()
+
+    if not key:
+        raise ValueError(
+            "GROQ_API_KEY is missing or empty. Please configure the GROQ_API_KEY environment variable in your Render backend settings."
+        )
 
     return ChatGroq(
         model=model_name,
