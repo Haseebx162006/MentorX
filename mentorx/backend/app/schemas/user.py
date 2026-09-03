@@ -29,8 +29,16 @@ class UserResponse(BaseModel):
     is_blocked: bool
     created_at: Optional[datetime] = None
     last_active: Optional[datetime] = None
+    access_token: Optional[str] = None
+    token_type: Optional[str] = "bearer"
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class AuthTokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
 
 
 class BlockStatusRequest(BaseModel):

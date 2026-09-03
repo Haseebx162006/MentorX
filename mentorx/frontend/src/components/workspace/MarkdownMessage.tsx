@@ -67,8 +67,8 @@ export default function MarkdownMessage({ content, isStreaming = false }: Markdo
       .replace(/\\\((.*?)\\\)/g, (_, eq) => ` ${cleanLatexFormula(eq)} `)
       .replace(/(?<!\$)\$(?!\$)(.*?)\$(?!\$)/g, (_, eq) => ` ${cleanLatexFormula(eq)} `);
 
-    // Process bold, inline code, links
-    const parts = cleanedText.split(/(\*\*.*?\*\*|`.*?`)/g);
+    // Process bold, inline code, links, and inline citations like [1], [2]
+    const parts = cleanedText.split(/(\*\*.*?\*\*|`.*?`|\[\d+\])/g);
     return parts.map((part, i) => {
       if (part.startsWith("**") && part.endsWith("**") && part.length >= 4) {
         return (
@@ -85,6 +85,18 @@ export default function MarkdownMessage({ content, isStreaming = false }: Markdo
           >
             {part.slice(1, -1)}
           </code>
+        );
+      }
+      if (/^\[\d+\]$/.test(part)) {
+        const citationNum = part.slice(1, -1);
+        return (
+          <span
+            key={i}
+            title={`Source Citation [${citationNum}] - Verified prospectus chunk`}
+            className="inline-flex items-center justify-center px-1.5 py-0.5 mx-0.5 text-[11px] font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100/90 border border-teal-200 rounded-md cursor-pointer transition-colors align-baseline select-none"
+          >
+            [{citationNum}]
+          </span>
         );
       }
       return part;

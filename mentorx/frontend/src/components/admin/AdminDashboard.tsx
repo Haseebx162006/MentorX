@@ -48,7 +48,7 @@ interface IngestedDoc {
 }
 
 export default function AdminDashboard() {
-  const { user, logout } = useAuthStore();
+  const { user, logout, getAuthHeaders } = useAuthStore();
   const { setCurrentView } = useUIStore();
 
   const [activeTab, setActiveTab] = useState<"users" | "knowledge">("users");
@@ -74,13 +74,18 @@ export default function AdminDashboard() {
   const fetchBackendData = async () => {
     setIsLoadingData(true);
     try {
-      const usersRes = await fetch(`${API_URL}/api/admin/users`);
+      const authHeaders = getAuthHeaders();
+      const usersRes = await fetch(`${API_URL}/api/admin/users`, {
+        headers: { ...authHeaders },
+      });
       if (usersRes.ok) {
         const data = await usersRes.json();
         setUsers(data);
       }
 
-      const docsRes = await fetch(`${API_URL}/api/admin/documents`);
+      const docsRes = await fetch(`${API_URL}/api/admin/documents`, {
+        headers: { ...authHeaders },
+      });
       if (docsRes.ok) {
         const data = await docsRes.json();
         setDocuments(data);
@@ -112,7 +117,10 @@ export default function AdminDashboard() {
     try {
       const res = await fetch(`${API_URL}/api/admin/users/${userId}/status`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
         body: JSON.stringify({ is_blocked: newStatus }),
       });
       if (res.ok) {
@@ -163,6 +171,9 @@ export default function AdminDashboard() {
 
       const res = await fetch(`${API_URL}/api/admin/documents/upload`, {
         method: "POST",
+        headers: {
+          ...getAuthHeaders(),
+        },
         body: formData,
       });
 

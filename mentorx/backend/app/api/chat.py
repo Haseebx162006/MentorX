@@ -19,10 +19,9 @@ from app.Pipeline.retrieve_node import retrieve_node
 from app.Pipeline.eval_node import eval_node
 from app.Pipeline.refine import refine
 from app.Pipeline.web_node import rewrite_query_node, web_search_node
-from app.Pipeline.combine_docs_node import combine_docs_node
-from app.Pipeline.generate_node import stream_generation_chain
 from app.services.user_service import UserService
 from app.services.chat_service import ChatService
+from app.Pipeline.guardrails import check_input_safety, verify_citation_grounding
 
 router = APIRouter(prefix="/api/chat", tags=["Chat & LangGraph Pipeline"])
 
@@ -146,6 +145,16 @@ async def execute_chat_query(
     session_id = session.id
 
     history = ChatService.get_recent_history_context(db, session_id, limit=6)
+
+    # 1. Guardrail Safety Check (Prompt Injection & Malicious Content Defense)
+    is_safe, safety_message = check_input_safety(payload.question)
+    if not is_safe:
+        return ChatResponse(
+            session_id=session_id,
+            answer=safety_message or "Query blocked by academic safety guardrail.",
+            verdict="good",
+            sources=[],
+        )
 
     answer = ""
     verdict = "good"
@@ -309,7 +318,23 @@ async def stream_chat_query(
         session_id=payload.session_id,
         user_id=payload.user_id,
     )
-    session_id = session.id
+    # 1. Guardrail Safety Check (Prompt Injection & Adversarial Attack Defense)
+    is_safe, safety_message = check_input_safety(payload.question)
+    if not is_safe:
+        async def guardrail_stream():
+            yield f"data: {json.dumps({'type': 'token', 'content': safety_message})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'session_id': session_id, 'sources': []})}\n\n"
+
+        return StreamingResponse(
+            guardrail_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
     db_history = ChatService.get_recent_history_context(db, session_id, limit=10)
     history = payload.history if (payload.history is not None and len(payload.history) > 0) else db_history
 

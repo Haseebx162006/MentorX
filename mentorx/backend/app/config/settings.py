@@ -25,6 +25,20 @@ class Settings(BaseSettings):
         description="Comma-separated admin email addresses with automatic administrator role",
     )
 
+    # JWT & Authentication Security
+    JWT_SECRET_KEY: str = Field(
+        default="mentorx-super-secure-production-jwt-secret-key-32-bytes-min!",
+        description="Secret key used to cryptographically sign JWT tokens",
+    )
+    JWT_ALGORITHM: str = Field(
+        default="HS256",
+        description="JWT cryptographic signing algorithm",
+    )
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
+        default=60 * 24 * 7,  # 7 days
+        description="Duration in minutes for JWT access token validity",
+    )
+
     # LangSmith Tracing & Observability
     LANGCHAIN_TRACING_V2: bool = Field(
         default=True,

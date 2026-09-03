@@ -11,6 +11,7 @@ export interface UserProfile {
   role: "admin" | "student";
   studyTrack?: string;
   isBlocked?: boolean;
+  token?: string;
 }
 
 export interface GoogleLoginParams {
@@ -23,6 +24,7 @@ export interface GoogleLoginParams {
 
 interface AuthState {
   user: UserProfile | null;
+  token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   authError: string | null;
@@ -31,6 +33,7 @@ interface AuthState {
   clearAuthError: () => void;
   updateUserProfile: (profile: Partial<UserProfile>) => void;
   toggleAdminRole: () => void;
+  getAuthHeaders: () => Record<string, string>;
 }
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
@@ -39,11 +42,21 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
+      token: null,
       isAuthenticated: false,
       isLoading: false,
       authError: null,
 
       clearAuthError: () => set({ authError: null }),
+
+      getAuthHeaders: (): Record<string, string> => {
+        const token = get().token || get().user?.token;
+        const headers: Record<string, string> = {};
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+        return headers;
+      },
 
       loginWithGoogle: async (params?: GoogleLoginParams) => {
         set({ isLoading: true, authError: null });
@@ -68,6 +81,7 @@ export const useAuthStore = create<AuthState>()(
 
           if (res.ok) {
             const data = await res.json();
+            const token = data.access_token || null;
             set({
               user: {
                 id: data.id,
@@ -77,7 +91,9 @@ export const useAuthStore = create<AuthState>()(
                 role: (data.role as "admin" | "student") || "student",
                 studyTrack: data.study_track || payload.study_track,
                 isBlocked: data.is_blocked || false,
+                token: token || undefined,
               },
+              token: token,
               isAuthenticated: true,
               isLoading: false,
               authError: null,
@@ -91,6 +107,7 @@ export const useAuthStore = create<AuthState>()(
               authError: msg,
               isAuthenticated: false,
               user: null,
+              token: null,
             });
             return false;
           } else {
@@ -125,7 +142,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
-        set({ user: null, isAuthenticated: false, isLoading: false, authError: null });
+        set({ user: null, token: null, isAuthenticated: false, isLoading: false, authError: null });
       },
 
       updateUserProfile: (profile) => {

@@ -9,6 +9,10 @@ import urllib.request
 import urllib.error
 from app.config.settings import settings
 
+from app.core.security import create_access_token
+from app.api.deps import get_current_user as get_authenticated_user
+from app.models.user import User
+
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 
@@ -20,6 +24,7 @@ async def google_sign_in(
     """
     Authenticates or registers a student/admin via Google OAuth using SQLAlchemy ORM.
     Supports token verification with Google's public tokeninfo endpoint.
+    Issues a cryptographically signed JWT access token.
     """
     try:
         email = payload.email
@@ -39,7 +44,6 @@ async def google_sign_in(
                             name = google_data.get("name", name)
                             avatar = google_data.get("picture", avatar)
             except Exception as token_err:
-                # If network verification fails or in offline dev, fallback to provided payload
                 print(f"Notice: Google token verification skipped or failed ({token_err}). Using client payload.")
 
         user = UserService.get_or_create_google_user(
@@ -56,7 +60,30 @@ async def google_sign_in(
                 detail="Your account has been blocked by an administrator.",
             )
 
-        return user
+        # Generate cryptographically signed JWT access token
+        token_payload = {
+            "sub": user.id,
+            "id": user.id,
+            "email": user.email,
+            "role": user.role,
+        }
+        access_token = create_access_token(token_payload)
+
+        # Return user with access token
+        user_dict = {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "avatar": user.avatar,
+            "role": user.role,
+            "study_track": user.study_track,
+            "is_blocked": user.is_blocked,
+            "created_at": user.created_at,
+            "last_active": user.last_active,
+            "access_token": access_token,
+            "token_type": "bearer",
+        }
+        return UserResponse(**user_dict)
     except HTTPException:
         raise
     except Exception as e:
@@ -66,13 +93,23 @@ async def google_sign_in(
         )
 
 
+@router.get("/me", response_model=UserResponse)
+async def get_my_profile(
+    current_user: User = Depends(get_authenticated_user),
+):
+    """
+    Retrieves the currently authenticated user's profile using their JWT Bearer token.
+    """
+    return current_user
+
+
 @router.get("/me/{user_id}", response_model=UserResponse)
-async def get_current_user(
+async def get_current_user_by_id(
     user_id: str,
     db: Session = Depends(get_db),
 ):
     """
-    Retrieves current user status and checks for block enforcement.
+    Retrieves current user status and checks for block enforcement (Legacy endpoint).
     """
     user = UserService.get_user_by_id(db, user_id)
     if not user:
