@@ -5,22 +5,40 @@ from app.config.settings import settings
 
 db_url = settings.get_database_url()
 
+import os
+from sqlalchemy.pool import NullPool
+
 # Format dialect for SQLAlchemy if needed
 if db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+# In serverless environments, prefer psycopg 3 if available and use NullPool
+if os.getenv("VERCEL") and db_url.startswith("postgresql://") and not db_url.startswith("postgresql+"):
+    try:
+        import psycopg
+        db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    except ImportError:
+        pass
 
 # Lazy/resilient engine creation
 engine = None
 
 if db_url:
     try:
-        engine = create_engine(
-            db_url,
-            pool_size=10,
-            max_overflow=20,
-            pool_pre_ping=True,
-            connect_args={"connect_timeout": 10},
-        )
+        if os.getenv("VERCEL"):
+            engine = create_engine(
+                db_url,
+                poolclass=NullPool,
+                connect_args={"connect_timeout": 10},
+            )
+        else:
+            engine = create_engine(
+                db_url,
+                pool_size=10,
+                max_overflow=20,
+                pool_pre_ping=True,
+                connect_args={"connect_timeout": 10},
+            )
     except Exception as e:
         engine = None
         print(f"Warning: Engine initialization error: {e}")
