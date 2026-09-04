@@ -9,12 +9,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy pyproject.toml and project definition
-COPY pyproject.toml README.md ./
+# Copy dependency manifests
+COPY requirements.txt pyproject.toml README.md ./
 
 # Install dependencies into a virtual environment or wheel cache
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir .
+    pip install --no-cache-dir -r requirements.txt
 
 # ==============================================================================
 # Production Runtime Stage

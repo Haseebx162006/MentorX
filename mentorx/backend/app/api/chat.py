@@ -299,25 +299,32 @@ async def stream_chat_query(
     Streams LLM token response in real-time using Server-Sent Events (SSE).
     Executes LangSmith traceable nodes and persists completed turn in PostgreSQL.
     """
-    if payload.user_id:
-        user = UserService.get_user_by_id(db, payload.user_id)
-        if user and user.is_blocked:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access Restricted: Your account has been blocked by an administrator.",
-            )
+    session_id = payload.session_id or f"session_{uuid.uuid4().hex[:12]}"
+    history = payload.history or []
 
-    if not payload.question.strip():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Question cannot be empty.",
+    try:
+        if payload.user_id:
+            user = UserService.get_user_by_id(db, payload.user_id)
+            if user and user.is_blocked:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access Restricted: Your account has been blocked by an administrator.",
+                )
+
+        session = ChatService.get_or_create_session(
+            db=db,
+            session_id=payload.session_id,
+            user_id=payload.user_id,
         )
+        session_id = session.id
+        db_history = ChatService.get_recent_history_context(db, session_id, limit=10)
+        if not history and db_history:
+            history = db_history
+    except HTTPException:
+        raise
+    except Exception as db_err:
+        print(f"Notice: Database session lookup fallback ({db_err}). Running in resilient mode.")
 
-    session = ChatService.get_or_create_session(
-        db=db,
-        session_id=payload.session_id,
-        user_id=payload.user_id,
-    )
     # 1. Guardrail Safety Check (Prompt Injection & Adversarial Attack Defense)
     is_safe, safety_message = check_input_safety(payload.question)
     if not is_safe:
@@ -329,14 +336,12 @@ async def stream_chat_query(
             guardrail_stream(),
             media_type="text/event-stream",
             headers={
-                "Cache-Control": "no-cache",
+                "Content-Type": "text/event-stream; charset=utf-8",
+                "Cache-Control": "no-cache, no-transform",
                 "Connection": "keep-alive",
                 "X-Accel-Buffering": "no",
             },
         )
-
-    db_history = ChatService.get_recent_history_context(db, session_id, limit=10)
-    history = payload.history if (payload.history is not None and len(payload.history) > 0) else db_history
 
     # Format history turns for LLM prompt
     history_formatted = []
@@ -456,4 +461,13 @@ async def stream_chat_query(
         # Yield final completion event
         yield f"data: {json.dumps({'type': 'done', 'session_id': session_id})}\n\n"
 
-    return StreamingResponse(sse_event_generator(), media_type="text/event-stream")
+    return StreamingResponse(
+        sse_event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Content-Type": "text/event-stream; charset=utf-8",
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
