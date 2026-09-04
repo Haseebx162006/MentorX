@@ -80,9 +80,11 @@ async def health_check():
 
 
 @app.get("/", tags=["Health"])
+@app.api_route("/api/index.py", methods=["GET", "POST", "OPTIONS"], tags=["Health"])
 async def root():
     """Root entrypoint."""
     return {
         "message": "MentorX Academic Intelligence API (SQLAlchemy ORM + Neon) is running.",
         "docs": "/docs",
+        "status": "healthy",
     }
