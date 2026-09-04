@@ -11,9 +11,16 @@ from app.Chunker.chunker import convert_to_chunks
 from app.vector.database import store_db
 
 from app.config.settings import settings
+import tempfile
 
-TEMP_DIR = Path(__file__).resolve().parent.parent.parent / "temp"
-TEMP_DIR.mkdir(parents=True, exist_ok=True)
+if os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+    TEMP_DIR = Path(tempfile.gettempdir())
+else:
+    TEMP_DIR = Path(__file__).resolve().parent.parent.parent / "temp"
+try:
+    TEMP_DIR.mkdir(parents=True, exist_ok=True)
+except Exception:
+    TEMP_DIR = Path(tempfile.gettempdir())
 
 
 class DocumentService:

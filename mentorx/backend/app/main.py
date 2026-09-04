@@ -18,9 +18,18 @@ from app.api.admin import router as admin_router
 from app.api.chat import router as chat_router
 from app.db.session import init_db
 
-# Ensure temp directory exists for uploads
-TEMP_DIR = backend_dir / "temp"
-TEMP_DIR.mkdir(parents=True, exist_ok=True)
+import os
+import tempfile
+
+# Ensure temp directory exists for uploads (safe for serverless / Vercel read-only filesystem)
+if os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+    TEMP_DIR = Path(tempfile.gettempdir())
+else:
+    TEMP_DIR = backend_dir / "temp"
+try:
+    TEMP_DIR.mkdir(parents=True, exist_ok=True)
+except Exception:
+    TEMP_DIR = Path(tempfile.gettempdir())
 
 app = FastAPI(
     title=settings.APP_NAME,
