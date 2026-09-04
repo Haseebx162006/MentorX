@@ -13,17 +13,15 @@ export default function Home() {
   const { currentView, setCurrentView, openAuthModal } = useUIStore();
   const { isAuthenticated, user } = useAuthStore();
 
-  // Route Guard: Skip loader on refresh if already authenticated in workspace
+  // Route Guard: Protect authenticated views after loader finishes
   useEffect(() => {
-    if (isAuthenticated) {
-      if (currentView === "loader") {
-        setCurrentView(user?.role === "admin" ? "admin" : "workspace");
+    if (currentView !== "loader") {
+      if (!isAuthenticated && (currentView === "workspace" || currentView === "admin")) {
+        setCurrentView("landing");
+        openAuthModal("signin");
       }
-    } else if (currentView === "workspace" || currentView === "admin") {
-      setCurrentView("landing");
-      openAuthModal("signin");
     }
-  }, [currentView, isAuthenticated, user, setCurrentView, openAuthModal]);
+  }, [currentView, isAuthenticated, openAuthModal, setCurrentView]);
 
   const renderView = () => {
     if (currentView === "loader") {

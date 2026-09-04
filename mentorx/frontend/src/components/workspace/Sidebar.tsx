@@ -11,6 +11,7 @@ import {
   PanelLeftClose,
   LogOut,
   Shield,
+  ShieldCheck,
   Trash2,
   MessageSquare,
 } from "lucide-react";
@@ -113,6 +114,20 @@ export default function Sidebar() {
             className="w-9 h-9 rounded-xl text-[#71717a] hover:bg-[#f4f4f5] flex items-center justify-center transition-colors cursor-pointer"
           >
             <History className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (user?.role === "admin") {
+                setCurrentView("admin");
+              } else {
+                openAuthModal("signin");
+              }
+            }}
+            title="Admin Portal"
+            className="w-9 h-9 rounded-xl text-[#18181b] bg-white border border-[#e4e4e7] hover:bg-[#f4f4f5] flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
+          >
+            <ShieldCheck className="w-4 h-4 text-emerald-600" />
           </button>
         </div>
 
@@ -258,6 +273,30 @@ export default function Sidebar() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Admin Portal Quick Access */}
+      <div className="px-3 pt-2 pb-1 bg-[#fcfcfc]">
+        <button
+          type="button"
+          onClick={() => {
+            if (user?.role === "admin") {
+              setCurrentView("admin");
+            } else {
+              openAuthModal("signin");
+            }
+          }}
+          title="Open Admin Dashboard"
+          className="w-full py-2 px-3 rounded-xl bg-white hover:bg-[#f4f4f5] text-[#18181b] text-xs font-semibold flex items-center justify-between transition-all cursor-pointer border border-[#e4e4e7] shadow-2xs group active:scale-[0.98]"
+        >
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-emerald-600 group-hover:scale-110 transition-transform" />
+            <span className="font-medium">Admin Dashboard</span>
+          </div>
+          <span className="text-[9px] font-mono bg-[#18181b] text-white px-1.5 py-0.5 rounded font-bold">
+            PORTAL
+          </span>
+        </button>
       </div>
 
       {/* Bottom Profile Card */}

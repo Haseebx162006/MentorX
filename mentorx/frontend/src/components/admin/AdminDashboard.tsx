@@ -14,6 +14,7 @@ import {
   BookOpen,
   Layers,
   ArrowRight,
+  ArrowLeft,
   Sparkles,
   Sliders,
   LogOut,
@@ -251,34 +252,55 @@ export default function AdminDashboard() {
 
       {/* Top Navbar */}
       <header className="h-16 px-6 sm:px-10 bg-white border-b border-[#e4e4e7] flex items-center justify-between sticky top-0 z-20">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-0.5">
-            <div className="w-2 h-5 bg-[#18181b] rounded-2xs transform -skew-x-12" />
-            <div className="w-2 h-5 bg-[#71717a] rounded-2xs transform -skew-x-12" />
-            <div className="w-2 h-5 bg-[#d4d4d8] rounded-2xs transform -skew-x-12" />
-          </div>
-          <span className="font-extrabold text-base tracking-tight">MentorX Admin</span>
-          <span className="text-[10px] font-mono bg-[#18181b] text-white px-2 py-0.5 rounded-full font-bold">
-            PORTAL
-          </span>
-        </div>
-
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <button
             type="button"
             onClick={() => setCurrentView("workspace")}
-            className="px-4 py-2 rounded-full bg-[#f4f4f5] hover:bg-[#e4e4e7] text-xs font-semibold text-[#18181b] transition-all flex items-center gap-2 cursor-pointer"
+            className="px-3.5 py-1.5 rounded-full bg-[#f4f4f5] hover:bg-[#e4e4e7] text-xs font-semibold text-[#18181b] transition-all flex items-center gap-2 cursor-pointer border border-[#e4e4e7] shadow-2xs"
           >
-            <span>Go to Student Chatbot</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Back to Student Chat</span>
           </button>
+
+          <div className="h-5 w-[1px] bg-[#e4e4e7]" />
+
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-0.5">
+              <div className="w-2 h-5 bg-[#18181b] rounded-2xs transform -skew-x-12" />
+              <div className="w-2 h-5 bg-[#71717a] rounded-2xs transform -skew-x-12" />
+              <div className="w-2 h-5 bg-[#d4d4d8] rounded-2xs transform -skew-x-12" />
+            </div>
+            <span className="font-bold text-base tracking-tight text-[#18181b]">MentorX Admin Workspace</span>
+            <span className="text-[10px] font-mono bg-[#18181b] text-white px-2 py-0.5 rounded-full font-bold">
+              SUPERVISOR
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 pr-2">
+            <img
+              src={user?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"}
+              alt="Admin"
+              className="w-7 h-7 rounded-full object-cover border border-[#e4e4e7]"
+            />
+            <div className="hidden sm:block text-left">
+              <div className="text-xs font-bold text-[#18181b]">{user?.name || "Supervisor Admin"}</div>
+              <div className="text-[10px] text-[#71717a]">{user?.email || "admin@mentorx.edu"}</div>
+            </div>
+          </div>
 
           <button
             type="button"
-            onClick={() => setCurrentView("landing")}
-            className="px-4 py-2 rounded-full bg-white border border-[#e4e4e7] hover:bg-[#f4f4f5] text-xs font-semibold text-[#71717a] hover:text-[#18181b] transition-all cursor-pointer"
+            onClick={() => {
+              logout();
+              setCurrentView("landing");
+            }}
+            title="Sign Out"
+            className="px-3 py-1.5 rounded-full border border-[#e4e4e7] hover:bg-[#f4f4f5] text-xs font-semibold text-[#71717a] hover:text-[#18181b] transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
           >
-            Landing Page
+            <LogOut className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Sign out</span>
           </button>
         </div>
       </header>
@@ -299,18 +321,18 @@ export default function AdminDashboard() {
           <div className="p-5 rounded-2xl bg-white border border-[#e4e4e7] shadow-2xs">
             <div className="flex items-center justify-between text-[#71717a] mb-2">
               <span className="text-xs font-medium">Active Access</span>
-              <CheckCircle2 className="w-4 h-4 text-[#15803d]" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
             </div>
-            <div className="text-2xl font-extrabold text-[#15803d]">{activeUsersCount}</div>
+            <div className="text-2xl font-extrabold text-emerald-600">{activeUsersCount}</div>
             <div className="text-[10px] text-[#71717a] mt-1">Can query MentorX chatbot</div>
           </div>
 
           <div className="p-5 rounded-2xl bg-white border border-[#e4e4e7] shadow-2xs">
             <div className="flex items-center justify-between text-[#71717a] mb-2">
               <span className="text-xs font-medium">Blocked Students</span>
-              <XCircle className="w-4 h-4 text-[#dc2626]" />
+              <XCircle className="w-4 h-4 text-rose-600" />
             </div>
-            <div className="text-2xl font-extrabold text-[#dc2626]">{blockedUsersCount}</div>
+            <div className="text-2xl font-extrabold text-rose-600">{blockedUsersCount}</div>
             <div className="text-[10px] text-[#71717a] mt-1">Access restricted by supervisor</div>
           </div>
 
@@ -324,33 +346,41 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="flex items-center gap-3 border-b border-[#e4e4e7] pb-3">
-          <button
-            type="button"
-            onClick={() => setActiveTab("users")}
-            className={`px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-              activeTab === "users"
-                ? "bg-[#18181b] text-white shadow-xs"
-                : "bg-white text-[#71717a] border border-[#e4e4e7] hover:text-[#18181b]"
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            <span>Responsibility 1: Student Management & Blocking</span>
-          </button>
+        {/* Claude-Style Segmented Tab Navigation */}
+        <div className="flex items-center">
+          <div className="inline-flex p-1 bg-[#f4f4f5] rounded-2xl border border-[#e4e4e7]">
+            <button
+              type="button"
+              onClick={() => setActiveTab("users")}
+              className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer ${
+                activeTab === "users"
+                  ? "bg-white text-[#18181b] shadow-2xs font-bold"
+                  : "text-[#71717a] hover:text-[#18181b]"
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>Student Directory & Access</span>
+              <span className="px-1.5 py-0.5 rounded-md text-[10px] bg-[#f4f4f5] text-[#18181b] font-mono">
+                {totalUsersCount}
+              </span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab("knowledge")}
-            className={`px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-              activeTab === "knowledge"
-                ? "bg-[#18181b] text-white shadow-xs"
-                : "bg-white text-[#71717a] border border-[#e4e4e7] hover:text-[#18181b]"
-            }`}
-          >
-            <UploadCloud className="w-4 h-4" />
-            <span>Responsibility 2: Prospectus & Merit Ingestion (Qdrant)</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("knowledge")}
+              className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer ${
+                activeTab === "knowledge"
+                  ? "bg-white text-[#18181b] shadow-2xs font-bold"
+                  : "text-[#71717a] hover:text-[#18181b]"
+              }`}
+            >
+              <UploadCloud className="w-3.5 h-3.5" />
+              <span>Knowledge Base & Prospectuses</span>
+              <span className="px-1.5 py-0.5 rounded-md text-[10px] bg-[#f4f4f5] text-[#18181b] font-mono">
+                {documents.length}
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* Tab Contents */}
